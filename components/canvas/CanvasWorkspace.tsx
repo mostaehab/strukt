@@ -1,0 +1,288 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import * as THREE from "three";
+import { Canvas, type ThreeEvent } from "@react-three/fiber";
+import useStructureStore from "@/store/useStructureStore";
+import { canConnect } from "@/engine/geometry";
+import type { StructuralNode } from "@/engine/types";
+import type { Tool } from "@/components/panels/Toolbar";
+import NodeGlyph from "./NodeGlyph";
+import ElementLine from "./ElementLine";
+
+const GRID_SIZE = 1;
+const GRID_EXTENT = 15;
+const NODE_RADIUS = 0.22;
+const CAMERA_ZOOM = 48;
+const BEAM_Y = 0;
+
+const COLORS = {
+  background: "#eef1f5",
+  ink: "#10151c",
+  accent: "#2f6fed",
+  grid: "#c3cad4",
+} as const;
+
+function snap(value: number, gridSize = GRID_SIZE) {
+  return Math.round(value / gridSize) * gridSize;
+}
+
+function nextNodeId() {
+  return crypto.randomUUID();
+}
+
+function nextElementId() {
+  return crypto.randomUUID();
+}
+
+interface CanvasWorkspaceProps {
+  tool: Tool;
+  beamPreset: boolean;
+  selectedNodeId: string | null;
+  onSelectNode: (id: string | null) => void;
+}
+
+/**
+ * r3f <Canvas> with an orthographic camera: grid rendering, Node/Element
+ * placement and selection, touch + mouse pointer handling. World coordinates
+ * come straight from r3f's built-in raycasting (event.point), so "snap to
+ * nearest grid point" is a plain Math.round in world space.
+ */
+export default function CanvasWorkspace({
+  tool,
+  beamPreset,
+  selectedNodeId,
+  onSelectNode,
+}: CanvasWorkspaceProps) {
+  const nodes = useStructureStore((s) => s.nodes);
+  const elements = useStructureStore((s) => s.elements);
+  const structureType = useStructureStore((s) => s.type);
+  const addNode = useStructureStore((s) => s.addNode);
+  const addElement = useStructureStore((s) => s.addElement);
+  const updateNode = useStructureStore((s) => s.updateNode);
+
+  const [pendingStartId, setPendingStartId] = useState<string | null>(null);
+  const [draggingNodeId, setDraggingNodeId] = useState<string | null>(null);
+  const [statusMessage, setStatusMessage] = useState("");
+
+  // Switching tools cancels any in-progress Element draw. Adjusted during
+  // render (React's recommended "resetting state when a prop changes"
+  // pattern) rather than in an effect, so it doesn't trigger a cascading
+  // post-commit render.
+  const [prevTool, setPrevTool] = useState(tool);
+  if (tool !== prevTool) {
+    setPrevTool(tool);
+    setPendingStartId(null);
+    setStatusMessage("");
+    setDraggingNodeId(null);
+  }
+
+  // A pending connection can go stale if its start Node is deleted (e.g. via
+  // the properties panel or Delete/Backspace) while the Element tool is
+  // mid-connection. Cleared during render (same "resetting state when a
+  // prop changes" pattern as the tool-switch reset above, not an effect)
+  // so it can't trigger a cascading post-commit render.
+  const [prevNodes, setPrevNodes] = useState(nodes);
+  if (nodes !== prevNodes) {
+    setPrevNodes(nodes);
+    if (pendingStartId && !nodes.some((node) => node.id === pendingStartId)) {
+      setPendingStartId(null);
+      setStatusMessage("");
+    }
+  }
+
+  // Release a drag even if the pointer is lifted outside the canvas --
+  // important for touch, where a finger can lift anywhere.
+  useEffect(() => {
+    function handlePointerUp() {
+      setDraggingNodeId(null);
+    }
+    window.addEventListener("pointerup", handlePointerUp);
+    window.addEventListener("pointercancel", handlePointerUp);
+    return () => {
+      window.removeEventListener("pointerup", handlePointerUp);
+      window.removeEventListener("pointercancel", handlePointerUp);
+    };
+  }, []);
+
+  // Escape cancels an in-progress Element connection. Form controls don't
+  // live inside the <Canvas>, so no focused-element guard is needed here
+  // (unlike app/page.tsx's Escape handler, which does need one).
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setPendingStartId(null);
+        setStatusMessage("");
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  const gridGeometry = useMemo(() => {
+    const geometry = new THREE.BufferGeometry();
+    const positions: number[] = [];
+    for (let x = -GRID_EXTENT; x <= GRID_EXTENT; x += 1) {
+      for (let y = -GRID_EXTENT; y <= GRID_EXTENT; y += 1) {
+        positions.push(x * GRID_SIZE, y * GRID_SIZE, -1);
+      }
+    }
+    geometry.setAttribute(
+      "position",
+      new THREE.Float32BufferAttribute(positions, 3),
+    );
+    return geometry;
+  }, []);
+
+  const handleBackgroundClick = useCallback(
+    (event: ThreeEvent<MouseEvent>) => {
+      if (tool === "SELECT") {
+        onSelectNode(null);
+        return;
+      }
+      if (tool !== "NODE") return;
+
+      const x = snap(event.point.x);
+      const y = beamPreset ? BEAM_Y : snap(event.point.y);
+      const existingNode = nodes.find((node) => node.x === x && node.y === y);
+      if (existingNode) {
+        onSelectNode(existingNode.id);
+        setStatusMessage("A Node already exists here.");
+        return;
+      }
+      addNode({
+        id: nextNodeId(),
+        x,
+        y,
+        support: "FREE",
+        fx: 0,
+        fy: 0,
+        mz: 0,
+      });
+    },
+    [tool, beamPreset, nodes, addNode, onSelectNode],
+  );
+
+  const handleBackgroundPointerMove = useCallback(
+    (event: ThreeEvent<PointerEvent>) => {
+      if (!draggingNodeId) return;
+      const x = snap(event.point.x);
+      const y = beamPreset ? BEAM_Y : snap(event.point.y);
+      const occupied = nodes.some(
+        (node) => node.id !== draggingNodeId && node.x === x && node.y === y,
+      );
+      if (occupied) return;
+      updateNode(draggingNodeId, { x, y });
+    },
+    [draggingNodeId, beamPreset, nodes, updateNode],
+  );
+
+  const handleNodeSelect = useCallback(
+    (node: StructuralNode) => {
+      if (tool === "ELEMENT") {
+        if (!pendingStartId) {
+          setPendingStartId(node.id);
+          setStatusMessage(
+            `Node ${node.id} selected. Choose an end Node to connect.`,
+          );
+          return;
+        }
+        if (pendingStartId === node.id) {
+          setStatusMessage("Cannot connect a Node to itself. No Element created.");
+          setPendingStartId(null);
+          return;
+        }
+        if (!canConnect(nodes, pendingStartId, node.id)) {
+          setStatusMessage("Nodes are coincident. No Element created.");
+          setPendingStartId(null);
+          return;
+        }
+        addElement({
+          id: nextElementId(),
+          material: "STEEL",
+          startNode: pendingStartId,
+          endNode: node.id,
+          crossSectionArea: 0,
+          inertia: 0,
+        });
+        setStatusMessage("");
+        setPendingStartId(null);
+        return;
+      }
+      if (tool === "SELECT") {
+        onSelectNode(node.id);
+      }
+    },
+    [tool, pendingStartId, nodes, addElement, onSelectNode],
+  );
+
+  const handleNodePointerDown = useCallback(
+    (node: StructuralNode) => {
+      if (tool === "SELECT") {
+        setDraggingNodeId(node.id);
+      }
+    },
+    [tool],
+  );
+
+  return (
+    <div className="canvas-workspace">
+      <Canvas
+        orthographic
+        camera={{ zoom: CAMERA_ZOOM, position: [0, 0, 100] }}
+        style={{ touchAction: "none" }}
+      >
+        <color attach="background" args={[COLORS.background]} />
+        <ambientLight intensity={1} />
+
+        <points geometry={gridGeometry}>
+          <pointsMaterial color={COLORS.grid} size={4} sizeAttenuation={false} />
+        </points>
+
+        {/* Invisible catcher plane: gives Node-tool placement and Select-tool
+            drag a world-space point even where no Node/Element was hit. */}
+        <mesh
+          position={[0, 0, -0.9]}
+          onClick={handleBackgroundClick}
+          onPointerMove={handleBackgroundPointerMove}
+        >
+          <planeGeometry args={[400, 400]} />
+          <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+        </mesh>
+
+        {elements.map((el) => {
+          const start = nodes.find((n) => n.id === el.startNode);
+          const end = nodes.find((n) => n.id === el.endNode);
+          if (!start || !end) return null;
+          return (
+            <ElementLine
+              key={el.id}
+              start={[start.x, start.y, 0]}
+              end={[end.x, end.y, 0]}
+              dashed={structureType === "TRUSS"}
+              color={COLORS.ink}
+            />
+          );
+        })}
+
+        {nodes.map((node) => (
+          <NodeGlyph
+            key={node.id}
+            position={[node.x, node.y, 0.2]}
+            radius={NODE_RADIUS}
+            color={
+              node.id === selectedNodeId || node.id === pendingStartId
+                ? COLORS.accent
+                : COLORS.ink
+            }
+            onSelect={() => handleNodeSelect(node)}
+            onPointerDown={() => handleNodePointerDown(node)}
+          />
+        ))}
+      </Canvas>
+      <p className="canvas-status" role="status" aria-live="polite">
+        {statusMessage}
+      </p>
+    </div>
+  );
+}

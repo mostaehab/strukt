@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "../components/ui/tokens.css";
 
 :root {
   --background: #ffffff;
@@ -12,15 +13,120 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+body {
+  background: var(--strukt-color-background);
+  color: var(--strukt-color-ink-primary);
+  font-family: Arial, Helvetica, sans-serif;
+  margin: 0;
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* Canvas Workspace layout (Story 1.1/1.2) -- Precise & Clinical register:
+   hairline strokes, zero corner-radius, one interactive accent color. */
+
+.app-shell {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--strukt-color-background);
+  color: var(--strukt-color-ink-primary);
+}
+
+.toolbar {
+  display: flex;
+  gap: var(--strukt-space-2);
+  padding: var(--strukt-space-2) var(--strukt-space-4);
+  border-bottom: 1px solid var(--strukt-color-border-hairline);
+  background: var(--strukt-color-surface);
+}
+
+.toolbar-button {
+  border: 1px solid var(--strukt-color-border-hairline);
+  border-radius: var(--strukt-radius-none);
+  background: var(--strukt-color-surface);
+  color: var(--strukt-color-ink-primary);
+  padding: var(--strukt-space-1) var(--strukt-space-3);
+  font: inherit;
+  cursor: pointer;
+}
+
+.toolbar-button.is-active {
+  border-color: var(--strukt-color-accent-primary);
+  color: var(--strukt-color-accent-primary);
+}
+
+.workspace-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.canvas-workspace {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+.canvas-status {
+  position: absolute;
+  left: var(--strukt-space-3);
+  bottom: var(--strukt-space-3);
+  margin: 0;
+  padding: var(--strukt-space-1) var(--strukt-space-2);
+  font-size: 0.85rem;
+  min-height: 1em;
+  color: var(--strukt-color-ink-secondary);
+  background: var(--strukt-color-surface);
+  border: 1px solid var(--strukt-color-border-hairline);
+  border-radius: var(--strukt-radius-none);
+}
+
+.properties-panel {
+  width: 260px;
+  flex-shrink: 0;
+  border-left: 1px solid var(--strukt-color-border-hairline);
+  background: var(--strukt-color-surface);
+  padding: var(--strukt-space-4);
+  overflow-y: auto;
+}
+
+.properties-panel h2 {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--strukt-color-ink-secondary);
+  margin: 0 0 var(--strukt-space-2);
+}
+
+.properties-panel section + section {
+  margin-top: var(--strukt-space-5);
+}
+
+.properties-panel select,
+.properties-panel button {
+  width: 100%;
+  border: 1px solid var(--strukt-color-border-hairline);
+  border-radius: var(--strukt-radius-none);
+  background: var(--strukt-color-surface);
+  color: var(--strukt-color-ink-primary);
+  padding: var(--strukt-space-2);
+  font: inherit;
+}
+
+.properties-panel button {
+  margin-top: var(--strukt-space-3);
+  cursor: pointer;
+  border-color: var(--strukt-color-accent-primary);
+  color: var(--strukt-color-accent-primary);
+}
+
+.hint {
+  font-size: 0.85rem;
+  color: var(--strukt-color-ink-secondary);
+}
+
+.node-id {
+  font-family: var(--font-geist-mono, monospace);
+  margin: 0 0 var(--strukt-space-2);
 }

@@ -1,0 +1,38 @@
+/*
+ * Minimal design-token subset for Story 1.1/1.2 (Canvas Workspace).
+ * "Precise & Clinical" visual register: hairline strokes, zero corner-radius,
+ * one interactive accent color. Plain CSS custom properties, not a full
+ * token pipeline -- expand only when a later story needs more.
+ *
+ * Prefixed with `--strukt-` so these can never collide with Tailwind v4's
+ * auto-generated `--color-*`/`--spacing-*` theme namespace (see
+ * app/globals.css's `@theme inline` block).
+ */
+:root {
+  --strukt-color-background: #eef1f5;
+  --strukt-color-surface: #ffffff;
+  --strukt-color-ink-primary: #10151c;
+  --strukt-color-ink-secondary: #5a6472;
+  --strukt-color-accent-primary: #2f6fed;
+  --strukt-color-border-hairline: #c3cad4;
+
+  --strukt-space-1: 4px;
+  --strukt-space-2: 8px;
+  --strukt-space-3: 12px;
+  --strukt-space-4: 16px;
+  --strukt-space-5: 24px;
+  --strukt-space-6: 32px;
+
+  --strukt-radius-none: 0px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --strukt-color-background: #0a0a0a;
+    --strukt-color-surface: #17191c;
+    --strukt-color-ink-primary: #ededed;
+    --strukt-color-ink-secondary: #a1a8b3;
+    --strukt-color-accent-primary: #6d97f2;
+    --strukt-color-border-hairline: #3a3f47;
+  }
+}

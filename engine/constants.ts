@@ -50,5 +50,3 @@ export const STRUCTURE_TYPES = {
     TRUSS: 'TRUSS',
     FRAME: 'FRAME',
 } as const;
-
-export type StructureType = keyof typeof STRUCTURE_TYPES;

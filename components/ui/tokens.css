@@ -14,7 +14,35 @@
   --strukt-color-ink-primary: #10151c;
   --strukt-color-ink-secondary: #5a6472;
   --strukt-color-accent-primary: #2f6fed;
+  /* Field-level rejection + (Story 1.5) blocked-Solve chrome. Never the sole
+     carrier of meaning -- always paired with text. */
+  --strukt-color-accent-danger: #b3261e;
   --strukt-color-border-hairline: #c3cad4;
+
+  /* Typography: engineering values are always set in the numeral (monospace)
+     stack, field captions in the uppercase label style. Sizes/weights/tracking
+     are the design spine's verbatim, not the mockup's approximations --
+     `_bmad-output/planning-artifacts/ux-designs/ux-strukt-2026-08-30/DESIGN.md`
+     typography.numeral / numeral-sm / label / body. */
+  --strukt-font-numeral: var(
+    --font-geist-mono,
+    ui-monospace,
+    SFMono-Regular,
+    "Cascadia Mono",
+    Consolas,
+    "Liberation Mono",
+    monospace
+  );
+  --strukt-font-numeral-size: 11.5px;
+  --strukt-font-numeral-line-height: 1.4;
+  /* numeral-sm: the smallest numeral instances (canvas captions, dimension
+     labels). */
+  --strukt-font-numeral-sm-size: 9.5px;
+  --strukt-font-numeral-sm-tracking: 0.02em;
+  --strukt-font-label-size: 10.5px;
+  --strukt-font-label-weight: 700;
+  --strukt-font-label-tracking: 0.1em;
+  --strukt-font-body-size: 13px;
 
   --strukt-space-1: 4px;
   --strukt-space-2: 8px;
@@ -33,6 +61,7 @@
     --strukt-color-ink-primary: #ededed;
     --strukt-color-ink-secondary: #a1a8b3;
     --strukt-color-accent-primary: #6d97f2;
+    --strukt-color-accent-danger: #ff6b5e;
     --strukt-color-border-hairline: #3a3f47;
   }
 }

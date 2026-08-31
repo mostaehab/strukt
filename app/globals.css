@@ -92,9 +92,10 @@ body {
 }
 
 .properties-panel h2 {
-  font-size: 0.75rem;
+  font-size: var(--strukt-font-label-size);
+  font-weight: var(--strukt-font-label-weight);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: var(--strukt-font-label-tracking);
   color: var(--strukt-color-ink-secondary);
   margin: 0 0 var(--strukt-space-2);
 }
@@ -121,12 +122,68 @@ body {
   color: var(--strukt-color-accent-primary);
 }
 
+/* Field pattern (label above a hairline-bordered monospace value), carried over
+   from the .field / .field label / .field .val rules in
+   `_bmad-output/planning-artifacts/ux-designs/ux-strukt-2026-08-30/mockups/key-canvas.html`. */
+
+.properties-panel .field {
+  margin-top: var(--strukt-space-3);
+}
+
+.properties-panel .field label {
+  display: block;
+  font-size: var(--strukt-font-label-size);
+  font-weight: var(--strukt-font-label-weight);
+  text-transform: uppercase;
+  letter-spacing: var(--strukt-font-label-tracking);
+  color: var(--strukt-color-ink-secondary);
+  margin-bottom: var(--strukt-space-1);
+}
+
+.properties-panel .field .val {
+  width: 100%;
+  box-sizing: border-box;
+  font-family: var(--strukt-font-numeral);
+  font-size: var(--strukt-font-numeral-size);
+  line-height: var(--strukt-font-numeral-line-height);
+  border: 1px solid var(--strukt-color-border-hairline);
+  border-radius: var(--strukt-radius-none);
+  background: var(--strukt-color-surface);
+  color: var(--strukt-color-ink-primary);
+  padding: var(--strukt-space-2);
+}
+
+.properties-panel .field .val[aria-invalid="true"] {
+  border-color: var(--strukt-color-accent-danger);
+}
+
+/* Field-level rejection message. Always text -- the danger color is a
+   reinforcement, never the only signal. Height is reserved while empty (same
+   approach as .canvas-status) so a rejection doesn't shove the field below it
+   down the panel. */
+.properties-panel .field-error {
+  margin: var(--strukt-space-1) 0 0;
+  min-height: 1em;
+  font-size: var(--strukt-font-body-size);
+  color: var(--strukt-color-accent-danger);
+}
+
 .hint {
   font-size: 0.85rem;
   color: var(--strukt-color-ink-secondary);
 }
 
-.node-id {
-  font-family: var(--font-geist-mono, monospace);
+.node-id,
+.element-id {
+  font-family: var(--strukt-font-numeral);
   margin: 0 0 var(--strukt-space-2);
+}
+
+/* Focus ring: 2px accent outline at 2px offset on every interactive control,
+   site-wide -- components.focus-ring in
+   `_bmad-output/planning-artifacts/ux-designs/ux-strukt-2026-08-30/DESIGN.md`
+   (WCAG 2.2 SC 2.4.7). */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--strukt-color-accent-primary);
+  outline-offset: 2px;
 }

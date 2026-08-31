@@ -16,11 +16,21 @@ export interface StructuralNode {
 
 export interface StructuralElement {
   id: string;
-  material: Material;
+  /** null until a Material is explicitly assigned -- "unassigned" is a real state. */
+  material: Material | null;
   startNode: string;
   endNode: string;
-  crossSectionArea: number;
-  inertia: number;
+  /**
+   * Pointer to the `engine/catalog/crossSections.ts` entry that produced
+   * `area`/`inertia` (AD-5/AD-8). Non-null means the values came from the
+   * catalog; null with non-null area/inertia means a manual override. The two
+   * never coexist -- see `store/useStructureStore.ts`'s `updateElement`.
+   */
+  crossSectionId: string | null;
+  /** Cross-sectional area in m^2 (SI, AD-4). null until assigned. */
+  area: number | null;
+  /** Moment of inertia in m^4 (SI, AD-4). null until assigned. */
+  inertia: number | null;
 }
 
 interface NodeResult {

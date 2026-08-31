@@ -5,14 +5,20 @@ import * as THREE from "three";
 import { Canvas, type ThreeEvent } from "@react-three/fiber";
 import useStructureStore from "@/store/useStructureStore";
 import { canConnect } from "@/engine/geometry";
+import { createElement } from "@/engine/element";
 import type { StructuralNode } from "@/engine/types";
 import type { Tool } from "@/components/panels/Toolbar";
 import NodeGlyph from "./NodeGlyph";
 import ElementLine from "./ElementLine";
+import { NODE_GLYPH_Z } from "./pickProxy";
 
 const GRID_SIZE = 1;
 const GRID_EXTENT = 15;
 const NODE_RADIUS = 0.22;
+// Invisible pick-target width for an Element, matched to the Node glyph's
+// diameter so both entities are equally tappable. The rendered stroke stays a
+// hairline -- this only widens hit-testing.
+const ELEMENT_HIT_WIDTH = NODE_RADIUS * 2;
 const CAMERA_ZOOM = 48;
 const BEAM_Y = 0;
 
@@ -40,6 +46,8 @@ interface CanvasWorkspaceProps {
   beamPreset: boolean;
   selectedNodeId: string | null;
   onSelectNode: (id: string | null) => void;
+  selectedElementId: string | null;
+  onSelectElement: (id: string | null) => void;
 }
 
 /**
@@ -53,6 +61,8 @@ export default function CanvasWorkspace({
   beamPreset,
   selectedNodeId,
   onSelectNode,
+  selectedElementId,
+  onSelectElement,
 }: CanvasWorkspaceProps) {
   const nodes = useStructureStore((s) => s.nodes);
   const elements = useStructureStore((s) => s.elements);
@@ -138,6 +148,7 @@ export default function CanvasWorkspace({
     (event: ThreeEvent<MouseEvent>) => {
       if (tool === "SELECT") {
         onSelectNode(null);
+        onSelectElement(null);
         return;
       }
       if (tool !== "NODE") return;
@@ -160,7 +171,7 @@ export default function CanvasWorkspace({
         mz: 0,
       });
     },
-    [tool, beamPreset, nodes, addNode, onSelectNode],
+    [tool, beamPreset, nodes, addNode, onSelectNode, onSelectElement],
   );
 
   const handleBackgroundPointerMove = useCallback(
@@ -197,14 +208,9 @@ export default function CanvasWorkspace({
           setPendingStartId(null);
           return;
         }
-        addElement({
-          id: nextElementId(),
-          material: "STEEL",
-          startNode: pendingStartId,
-          endNode: node.id,
-          crossSectionArea: 0,
-          inertia: 0,
-        });
+        // Material and Cross-Section start unassigned -- "no Material yet" is
+        // a real state, not a silent default to Steel with zero properties.
+        addElement(createElement(nextElementId(), pendingStartId, node.id));
         setStatusMessage("");
         setPendingStartId(null);
         return;
@@ -260,7 +266,11 @@ export default function CanvasWorkspace({
               start={[start.x, start.y, 0]}
               end={[end.x, end.y, 0]}
               dashed={structureType === "TRUSS"}
-              color={COLORS.ink}
+              color={el.id === selectedElementId ? COLORS.accent : COLORS.ink}
+              hitWidth={ELEMENT_HIT_WIDTH}
+              onSelect={
+                tool === "SELECT" ? () => onSelectElement(el.id) : undefined
+              }
             />
           );
         })}
@@ -268,7 +278,7 @@ export default function CanvasWorkspace({
         {nodes.map((node) => (
           <NodeGlyph
             key={node.id}
-            position={[node.x, node.y, 0.2]}
+            position={[node.x, node.y, NODE_GLYPH_Z]}
             radius={NODE_RADIUS}
             color={
               node.id === selectedNodeId || node.id === pendingStartId

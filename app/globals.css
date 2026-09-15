@@ -168,6 +168,90 @@ body {
   color: var(--strukt-color-accent-danger);
 }
 
+/* Load block (Story 1.4). A <fieldset> so the magnitude and direction controls
+   are announced under one group name, stripped of the browser's default box so
+   the panel keeps its hairline-only register. */
+
+.properties-panel .load-block {
+  margin: var(--strukt-space-4) 0 0;
+  padding: 0;
+  border: 0;
+}
+
+.properties-panel .load-block legend {
+  padding: 0;
+  font-size: var(--strukt-font-label-size);
+  font-weight: var(--strukt-font-label-weight);
+  text-transform: uppercase;
+  letter-spacing: var(--strukt-font-label-tracking);
+  color: var(--strukt-color-ink-secondary);
+}
+
+.properties-panel .load-list {
+  list-style: none;
+  margin: var(--strukt-space-3) 0 0;
+  padding: 0;
+}
+
+.properties-panel .load-row {
+  display: flex;
+  align-items: center;
+  gap: var(--strukt-space-2);
+}
+
+.properties-panel .load-row + .load-row {
+  margin-top: var(--strukt-space-1);
+}
+
+/* Carried over from the .load-tag rule in
+   `_bmad-output/planning-artifacts/ux-designs/ux-strukt-2026-08-30/mockups/key-canvas.html`,
+   with the numeral and accent tokens in place of its hardcoded values. */
+.properties-panel .load-tag {
+  display: inline-block;
+  font-family: var(--strukt-font-numeral);
+  font-size: var(--strukt-font-numeral-size);
+  line-height: var(--strukt-font-numeral-line-height);
+  font-weight: 600;
+  background: var(--strukt-color-surface);
+  border: 1px solid var(--strukt-color-accent-primary);
+  border-radius: var(--strukt-radius-none);
+  color: var(--strukt-color-accent-primary);
+  padding: var(--strukt-space-1) var(--strukt-space-2);
+}
+
+/* Applying is an explicit submit, not a side effect of leaving the magnitude
+   field -- so it gets a real control, sized like the panel's other buttons. */
+.properties-panel .load-apply {
+  min-height: var(--strukt-touch-target);
+}
+
+/* Overrides the panel's full-width button default: this one sits beside its
+   tag rather than spanning the panel. It still has to be as tappable as
+   anything else on the canvas, so the target size is held even though the
+   label is two syllables -- the EXPERIENCE.md touch-parity requirement. */
+.properties-panel .load-delete {
+  width: auto;
+  min-width: var(--strukt-touch-target);
+  min-height: var(--strukt-touch-target);
+  margin-top: 0;
+  margin-left: auto;
+  padding: var(--strukt-space-1) var(--strukt-space-3);
+  font-size: var(--strukt-font-body-size);
+}
+
+/* Canvas Load caption, rendered as DOM text over the canvas (drei <Html>) in
+   the same numeral stack as every other engineering value. Unprefixed and
+   pointer-transparent -- it must never intercept a canvas tap. */
+.load-label {
+  font-family: var(--strukt-font-numeral);
+  font-size: var(--strukt-font-numeral-size);
+  line-height: var(--strukt-font-numeral-line-height);
+  color: var(--strukt-color-accent-primary);
+  white-space: nowrap;
+  user-select: none;
+  pointer-events: none;
+}
+
 .hint {
   font-size: 0.85rem;
   color: var(--strukt-color-ink-secondary);

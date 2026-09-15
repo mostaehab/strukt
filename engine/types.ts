@@ -9,9 +9,87 @@ export interface StructuralNode {
   x: number;
   y: number;
   support: Support;
-  fx: number;
-  fy: number;
-  mz: number;
+}
+
+export type LoadKind = "concentrated" | "udl";
+
+/**
+ * What a Load is applied to. Discriminated on `type` so a Load can never
+ * carry both a Node and an Element id, and so a cascade delete can tell the
+ * two apart without guessing from `kind`.
+ */
+export interface NodeLoadTarget {
+  type: "node";
+  nodeId: string;
+}
+
+export interface ElementLoadTarget {
+  type: "element";
+  elementId: string;
+}
+
+export type LoadTarget = NodeLoadTarget | ElementLoadTarget;
+
+interface LoadCommon {
+  id: string;
+  /**
+   * SI, AD-4: newtons for a concentrated Load, newtons per metre for a UDL.
+   * kN is display-only -- neither `engine/` nor `store/` holds a converted
+   * value. Always positive; direction lives in `direction`, not in the sign.
+   */
+  magnitude: number;
+  /**
+   * Unit vector in the global frame -- positive x rightward, positive y upward
+   * (AD-10). The properties panel exposes the four axis directions only, so
+   * storage is deliberately more expressive than the input.
+   *
+   * `readonly` so no holder can mutate a vector already past the store's
+   * validators -- a direction is replaced through `updateLoad`, never edited
+   * in place.
+   */
+  direction: readonly [number, number];
+}
+
+/** A point force on one Node -- newtons. */
+export interface ConcentratedLoad extends LoadCommon {
+  kind: "concentrated";
+  target: NodeLoadTarget;
+}
+
+/** A uniformly distributed load along one Element -- newtons per metre. */
+export interface DistributedLoad extends LoadCommon {
+  kind: "udl";
+  target: ElementLoadTarget;
+}
+
+/**
+ * A first-class Load (AD-10), replacing the scalar per-Node force and moment
+ * fields `StructuralNode` used to carry. Multiple Loads may target the same
+ * Node or Element -- each is its own list entry, never accumulated into a
+ * field (FR-8/FR-9's "sum, don't overwrite"), so summing is derived on read by
+ * `engine/loadResolution.ts`.
+ *
+ * A union of the two legal (kind, target) pairings rather than a free pairing
+ * of both: a UDL on a Node would draw a single arrow labelled per-metre and
+ * would be summed as a point force, so the combination is made
+ * unrepresentable rather than merely undocumented. The shape of each member is
+ * exactly AD-10's.
+ *
+ * Applied moment loads are an explicit FR-9 non-goal: there is no input-side
+ * moment field here and none is reserved. `NodeResult.rmz` is the *output*
+ * reaction moment and is unrelated.
+ */
+export type Load = ConcentratedLoad | DistributedLoad;
+
+/**
+ * The only fields an applied Load may change. `id`, `kind` and `target` are
+ * immutable: rewriting an id duplicates React keys and makes `deleteLoad`
+ * remove two entries, and retargeting can point a Load at an entity that no
+ * longer exists -- both of which the cascade rules assume cannot happen.
+ */
+export interface LoadPatch {
+  magnitude?: number;
+  direction?: readonly [number, number];
 }
 
 export interface StructuralElement {
@@ -59,6 +137,7 @@ export interface StructureState {
   name: string;
   nodes: StructuralNode[];
   elements: StructuralElement[];
+  loads: Load[];
   analysisResults?: AnalysisResults;
 
   addNode: (node: StructuralNode) => void;
@@ -70,6 +149,11 @@ export interface StructureState {
     updatedElement: Partial<StructuralElement>,
   ) => void;
   deleteElement: (id: string) => void;
+  /** false when the Load was refused -- the caller surfaces the rejection. */
+  addLoad: (load: Load) => boolean;
+  /** false when every field in the patch was refused. */
+  updateLoad: (id: string, updatedLoad: LoadPatch) => boolean;
+  deleteLoad: (id: string) => void;
   setStructureType: (type: StructureType) => boolean;
   setAnalysisResults: (results: AnalysisResults) => void;
   clearAll: () => void;
@@ -79,4 +163,5 @@ export interface EnginePayload {
   type: StructureType;
   nodes: StructuralNode[];
   elements: StructuralElement[];
+  loads: Load[];
 }

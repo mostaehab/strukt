@@ -6,11 +6,14 @@ import { Canvas, type ThreeEvent } from "@react-three/fiber";
 import useStructureStore from "@/store/useStructureStore";
 import { canConnect } from "@/engine/geometry";
 import { createElement } from "@/engine/element";
-import type { StructuralNode } from "@/engine/types";
+import type { Load, StructuralNode } from "@/engine/types";
+import { formatKilonewtons, loadUnitLabel } from "@/utils/units";
+import { nodeLabel } from "@/utils/labels";
 import type { Tool } from "@/components/panels/Toolbar";
 import NodeGlyph from "./NodeGlyph";
 import ElementLine from "./ElementLine";
-import { NODE_GLYPH_Z } from "./pickProxy";
+import LoadGlyph from "./LoadGlyph";
+import { NODE_GLYPH_Z, PIXELS_PER_WORLD_UNIT } from "./canvasConstants";
 
 const GRID_SIZE = 1;
 const GRID_EXTENT = 15;
@@ -19,7 +22,9 @@ const NODE_RADIUS = 0.22;
 // diameter so both entities are equally tappable. The rendered stroke stays a
 // hairline -- this only widens hit-testing.
 const ELEMENT_HIT_WIDTH = NODE_RADIUS * 2;
-const CAMERA_ZOOM = 48;
+// Single-sourced with the Load glyph sizes, which are the mockup's pixel
+// dimensions divided by exactly this number.
+const CAMERA_ZOOM = PIXELS_PER_WORLD_UNIT;
 const BEAM_Y = 0;
 
 const COLORS = {
@@ -39,6 +44,33 @@ function nextNodeId() {
 
 function nextElementId() {
   return crypto.randomUUID();
+}
+
+/** Canvas labels carry no `L:` prefix -- that belongs to the panel tag only. */
+function loadLabel(load: Load): string {
+  return `${formatKilonewtons(load.magnitude)} ${loadUnitLabel(load.kind)}`;
+}
+
+/**
+ * Position of each Load among the Loads sharing its target.
+ *
+ * Two Loads pointing the same way at one Node would otherwise draw perfectly
+ * coincident arrows and read as one -- so each is handed its index and the
+ * glyph offsets itself. Computed once per `loads` change rather than by
+ * scanning the list per arrow.
+ */
+function stackIndexes(loads: Load[]): Map<string, number> {
+  const seen = new Map<string, number>();
+  const indexes = new Map<string, number>();
+  for (const load of loads) {
+    const { target } = load;
+    const key =
+      target.type === "node" ? `n:${target.nodeId}` : `e:${target.elementId}`;
+    const index = seen.get(key) ?? 0;
+    seen.set(key, index + 1);
+    indexes.set(load.id, index);
+  }
+  return indexes;
 }
 
 interface CanvasWorkspaceProps {
@@ -66,6 +98,7 @@ export default function CanvasWorkspace({
 }: CanvasWorkspaceProps) {
   const nodes = useStructureStore((s) => s.nodes);
   const elements = useStructureStore((s) => s.elements);
+  const loads = useStructureStore((s) => s.loads);
   const structureType = useStructureStore((s) => s.type);
   const addNode = useStructureStore((s) => s.addNode);
   const addElement = useStructureStore((s) => s.addElement);
@@ -129,6 +162,8 @@ export default function CanvasWorkspace({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
+  const loadStackIndexes = useMemo(() => stackIndexes(loads), [loads]);
+
   const gridGeometry = useMemo(() => {
     const geometry = new THREE.BufferGeometry();
     const positions: number[] = [];
@@ -161,15 +196,9 @@ export default function CanvasWorkspace({
         setStatusMessage("A Node already exists here.");
         return;
       }
-      addNode({
-        id: nextNodeId(),
-        x,
-        y,
-        support: "FREE",
-        fx: 0,
-        fy: 0,
-        mz: 0,
-      });
+      // No force fields here: a Load is its own entity (AD-10), applied from
+      // the properties panel, so a new Node carries no zero-valued placeholder.
+      addNode({ id: nextNodeId(), x, y, support: "FREE" });
     },
     [tool, beamPreset, nodes, addNode, onSelectNode, onSelectElement],
   );
@@ -194,7 +223,8 @@ export default function CanvasWorkspace({
         if (!pendingStartId) {
           setPendingStartId(node.id);
           setStatusMessage(
-            `Node ${node.id} selected. Choose an end Node to connect.`,
+            // The positional label the panel shows, not the stored UUID.
+            `Node ${nodeLabel(nodes, node.id)} selected. Choose an end Node to connect.`,
           );
           return;
         }
@@ -289,6 +319,53 @@ export default function CanvasWorkspace({
             onPointerDown={() => handleNodePointerDown(node)}
           />
         ))}
+
+        {/* One glyph per Load, never one per loaded entity: two Loads on a
+            Node draw two offset arrows, which is what makes "sum, don't
+            overwrite" visible instead of implied. A missing target is skipped
+            the way a dangling Element is -- the store's cascades mean it
+            should be unreachable, and a stale reference must not blank the
+            view if it ever isn't. */}
+        {loads.map((load) => {
+          const stackIndex = loadStackIndexes.get(load.id) ?? 0;
+          // Destructured, not read through `load`: a discriminant narrowed on
+          // a parameter does not stay narrowed inside these callbacks.
+          const { target } = load;
+          if (target.type === "node") {
+            const node = nodes.find((n) => n.id === target.nodeId);
+            if (!node) return null;
+            return (
+              <LoadGlyph
+                key={load.id}
+                kind="concentrated"
+                target={[node.x, node.y]}
+                direction={load.direction}
+                color={COLORS.accent}
+                haloColor={COLORS.background}
+                label={loadLabel(load)}
+                stackIndex={stackIndex}
+              />
+            );
+          }
+          const element = elements.find((e) => e.id === target.elementId);
+          if (!element) return null;
+          const start = nodes.find((n) => n.id === element.startNode);
+          const end = nodes.find((n) => n.id === element.endNode);
+          if (!start || !end) return null;
+          return (
+            <LoadGlyph
+              key={load.id}
+              kind="udl"
+              start={[start.x, start.y]}
+              end={[end.x, end.y]}
+              direction={load.direction}
+              color={COLORS.accent}
+              haloColor={COLORS.background}
+              label={loadLabel(load)}
+              stackIndex={stackIndex}
+            />
+          );
+        })}
       </Canvas>
       <p className="canvas-status" role="status" aria-live="polite">
         {statusMessage}

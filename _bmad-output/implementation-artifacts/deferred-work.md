@@ -59,3 +59,23 @@ Findings from three adversarial review layers (blind-hunter, edge-case-hunter, v
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-3-materials-cross-sections.md`
   summary: Supplements the earlier touch-delete entry with stronger evidence than was available when that deferral was decided — `EXPERIENCE.md:120` requires "a Delete/Backspace key (mouse+keyboard) **or** an explicit on-canvas delete affordance (touch)", and this change deleted an `app/page.tsx` comment that had recorded the keyboard path as "a supplement to the touch-friendly button in PropertiesPanel, not a replacement for it".
   evidence: Raises the earlier entry from an epic-level parity concern to a named requirement violation with a removed in-code acknowledgement. The human deferred it on 2026-08-31 having been told only that it was a ~4-line change against general touch-parity guidance; recorded here so whoever picks it up sees the actual requirement citation rather than re-deriving it.
+
+## From Story 1.4 Reviewer Gate — 2026-08-31
+
+Findings from three adversarial review layers (blind-hunter, edge-case-hunter, verification-gap) triaged as `defer`.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-4-loads.md`
+  summary: Removing `StructuralNode.fx`/`fy`/`mz` is a breaking change to the persisted structure shape, and nothing in the codebase carries a schema version — neither `StructureState` nor `EnginePayload`, which itself still has no consumer anywhere.
+  evidence: Architecture AD-5 mandates that the persisted `structure` JSONB have "a mandatory `schemaVersion: number` field". No Project has ever been saved (persistence arrives in Epic 3), so nothing is broken today — but Epic 3's load path inherits a shape that has already changed once with no way to recognise or convert an older document. Story 1.3's `crossSectionId` addition and Story 1.4's field removal are both silent shape changes against a format with no version marker. Establish `schemaVersion` before the first Project is persisted, not after.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-4-loads.md`
+  summary: `resolveNodeLoad` and `resolveElementLoad` have no production caller — only tests reference them — so the resultant of multiple Loads is never shown to the user. A student with 5 kN down and 3 kN up on one Node sees two tags and two arrows, never `2 kN ↓`.
+  evidence: Spec-compliant by construction: Story 1.4's spec explicitly built these helpers for Story 1.5 to consume, and the frozen matrix requires only that Loads persist as separate entries whose resolved force is their vector sum — which the store and helpers satisfy and tests verify. But it leaves FR-8/FR-9's "sum, don't overwrite" invisible in the UI. Surfacing the resultant in the Load block would close the user-visible half and give the module its first consumer; Story 1.5 will consume it regardless, so decide then whether the panel should show it too.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-4-loads.md`
+  summary: `updateLoad` is implemented and tested but has no UI path — an applied Load can only be deleted and re-entered, never edited. Either wire an edit affordance or drop the action.
+  evidence: The panel's Load block applies on commit and offers only delete. Story 1.5 needs `updateLoad` for AD-3's stale-results invalidation regardless, so the action should stay; the gap is the missing edit affordance. Deferred because the fix interacts with the Apply-button change made during this story's patch pass, and the right edit model (inline per-tag editing vs. re-populating the entry fields) is a UX decision no artifact covers.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-4-loads.md`
+  summary: Positional labels remain index-derived and now extend to control names — `N${index + 1}`, `E${index + 1}` and `Delete Load ${index + 1} on ${entityLabel}` all key off array position, so deleting an earlier entity or Load silently renames unrelated siblings, including the accessible name of a focused control.
+  evidence: Third recurrence of the stable-ordinal gap first recorded for Story 1.3, now widened from display text to interactive control names — a screen-reader user can have a button's announced name change under them because an unrelated sibling was removed. Story 1.4 pulled Node labels forward to make Load microcopy coherent, which increased the surface rather than closing it. Still deferred because the fix is one decision — assign a stable ordinal at creation and store it — that should be made once for Nodes, Elements and Loads together.

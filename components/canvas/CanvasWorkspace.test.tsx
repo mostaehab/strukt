@@ -5,6 +5,13 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import useStructureStore from "@/store/useStructureStore";
 import { createElement } from "@/engine/element";
+import {
+  AXIS_DIRECTIONS,
+  createLoad,
+  elementTarget,
+  nodeTarget,
+  type AxisDirection,
+} from "@/engine/load";
 import type { StructuralNode } from "@/engine/types";
 
 // r3f's <Canvas> needs WebGL, which jsdom has none of; the two render
@@ -49,8 +56,46 @@ vi.mock("./NodeGlyph", () => ({
   ),
 }));
 
+vi.mock("./LoadGlyph", () => ({
+  default: ({
+    kind,
+    target,
+    start,
+    end,
+    direction,
+    color,
+    haloColor,
+    label,
+    stackIndex,
+  }: {
+    kind: "concentrated" | "udl";
+    target?: [number, number];
+    start?: [number, number];
+    end?: [number, number];
+    direction: readonly [number, number];
+    color: string;
+    haloColor: string;
+    label: string;
+    stackIndex?: number;
+  }) => (
+    <span
+      data-testid="load-glyph"
+      data-kind={kind}
+      data-target={target ? target.join(",") : ""}
+      data-start={start ? start.join(",") : ""}
+      data-end={end ? end.join(",") : ""}
+      data-direction={direction.join(",")}
+      data-color={color}
+      data-halo-color={haloColor}
+      data-label={label}
+      data-stack-index={String(stackIndex ?? 0)}
+    />
+  ),
+}));
+
 const INK = "#10151c";
 const ACCENT = "#2f6fed";
+const BACKGROUND = "#eef1f5";
 
 const NODE_A = "n1";
 const NODE_B = "n2";
@@ -59,7 +104,7 @@ const ELEMENT_1 = "el-1";
 const ELEMENT_2 = "el-2";
 
 function makeNode(id: string, x: number, y: number): StructuralNode {
-  return { id, x, y, support: "FREE", fx: 0, fy: 0, mz: 0 };
+  return { id, x, y, support: "FREE" };
 }
 
 function seedTwoElements() {
@@ -94,6 +139,29 @@ async function renderWorkspace(overrides: Overrides = {}) {
 
 function elementLines() {
   return screen.getAllByTestId("element-line");
+}
+
+function loadGlyphs() {
+  return screen.getAllByTestId("load-glyph");
+}
+
+function addNodeLoad(
+  id: string,
+  nodeId: string,
+  magnitude: number,
+  axis: AxisDirection,
+) {
+  useStructureStore
+    .getState()
+    .addLoad(
+      createLoad(
+        id,
+        "concentrated",
+        nodeTarget(nodeId),
+        magnitude,
+        AXIS_DIRECTIONS[axis],
+      ),
+    );
 }
 
 beforeEach(() => {
@@ -187,5 +255,118 @@ describe("CanvasWorkspace Element selection", () => {
 
     await renderWorkspace();
     expect(elementLines()).toHaveLength(1);
+  });
+});
+
+describe("CanvasWorkspace Load arrows", () => {
+  // Matrix row: Canvas arrow orientation -- the stored direction reaches the
+  // glyph unchanged, and the arrow is anchored on the Node it acts on.
+  it("draws a Load arrow at its Node, in the accent color", async () => {
+    seedTwoElements();
+    addNodeLoad("l1", NODE_B, 5000, "-y");
+    await renderWorkspace();
+
+    const [glyph] = loadGlyphs();
+    expect(glyph.dataset.kind).toBe("concentrated");
+    expect(glyph.dataset.target).toBe("2,0");
+    expect(glyph.dataset.direction).toBe("0,-1");
+    expect(glyph.dataset.color).toBe(ACCENT);
+    // Canvas labels are unprefixed and trimmed -- the `L:` prefix and the
+    // 2-decimal form belong to the panel tag.
+    expect(glyph.dataset.label).toBe("5 kN");
+  });
+
+  it("draws one arrow per Load, so two Loads on one Node draw two", async () => {
+    seedTwoElements();
+    addNodeLoad("l1", NODE_A, 5000, "-y");
+    addNodeLoad("l2", NODE_A, 5000, "+y");
+    await renderWorkspace();
+
+    expect(loadGlyphs()).toHaveLength(2);
+    expect(loadGlyphs().map((g) => g.dataset.direction)).toEqual([
+      "0,-1",
+      "0,1",
+    ]);
+  });
+
+  // A UDL is drawn over the member it acts on, not as one arrow at its
+  // midpoint -- which is the notation for a concentrated load at midspan.
+  it("hands a UDL its Element's whole span, labelled per metre", async () => {
+    seedTwoElements();
+    // Element 1 spans (0,0) to (2,0).
+    useStructureStore
+      .getState()
+      .addLoad(
+        createLoad(
+          "l1",
+          "udl",
+          elementTarget(ELEMENT_1),
+          2000,
+          AXIS_DIRECTIONS["-y"],
+        ),
+      );
+    await renderWorkspace();
+
+    const [glyph] = loadGlyphs();
+    expect(glyph.dataset.kind).toBe("udl");
+    expect(glyph.dataset.start).toBe("0,0");
+    expect(glyph.dataset.end).toBe("2,0");
+    expect(glyph.dataset.target).toBe("");
+    expect(glyph.dataset.label).toBe("2 kN/m");
+  });
+
+  // Two Loads pointing the same way at one Node would draw as a single arrow
+  // without this -- the case "sum, don't overwrite" exists to make visible.
+  it("gives each Load on a target its own place in the stack", async () => {
+    seedTwoElements();
+    addNodeLoad("l1", NODE_A, 5000, "-y");
+    addNodeLoad("l2", NODE_A, 5000, "-y");
+    addNodeLoad("l3", NODE_B, 5000, "-y");
+    await renderWorkspace();
+
+    expect(loadGlyphs().map((g) => g.dataset.stackIndex)).toEqual([
+      "0",
+      "1",
+      // A different target starts its own stack.
+      "0",
+    ]);
+  });
+
+  it("paints the head halo in the canvas background colour", async () => {
+    seedTwoElements();
+    addNodeLoad("l1", NODE_A, 5000, "-y");
+    await renderWorkspace();
+    // The head lands on a Node glyph that is *also* accent when selected, so
+    // it needs an outline in something that is not the accent.
+    expect(loadGlyphs()[0].dataset.color).toBe(ACCENT);
+    expect(loadGlyphs()[0].dataset.haloColor).toBe(BACKGROUND);
+  });
+
+  it("draws no arrow when nothing is loaded", async () => {
+    seedTwoElements();
+    await renderWorkspace();
+    expect(screen.queryAllByTestId("load-glyph")).toHaveLength(0);
+  });
+
+  it("skips a Load whose target no longer exists", async () => {
+    seedTwoElements();
+    addNodeLoad("l1", NODE_A, 5000, "-y");
+    // The Node removed without the store's cascade, leaving the Load dangling.
+    useStructureStore.setState({
+      nodes: useStructureStore.getState().nodes.filter((n) => n.id !== NODE_A),
+    });
+
+    await renderWorkspace();
+    expect(screen.queryAllByTestId("load-glyph")).toHaveLength(0);
+  });
+
+  // Matrix row: Load on an isolated Node -- drawn, nothing blocks it here.
+  it("draws a Load on a Node with no Element", async () => {
+    useStructureStore.getState().addNode(makeNode(NODE_A, 4, 1));
+    addNodeLoad("l1", NODE_A, 5000, "-y");
+    await renderWorkspace();
+
+    expect(loadGlyphs()).toHaveLength(1);
+    expect(loadGlyphs()[0].dataset.target).toBe("4,1");
   });
 });

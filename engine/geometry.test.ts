@@ -3,7 +3,7 @@ import { canConnect } from "./geometry";
 import type { StructuralNode } from "./types";
 
 function makeNode(id: string, x: number, y: number): StructuralNode {
-  return { id, x, y, support: "FREE", fx: 0, fy: 0, mz: 0 };
+  return { id, x, y, support: "FREE" };
 }
 
 describe("canConnect", () => {

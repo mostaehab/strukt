@@ -2,9 +2,17 @@ import { create } from "zustand";
 import {
   StructureState,
   StructuralElement,
+  Load,
+  LoadPatch,
   Material,
 } from "../engine/types";
 import { findCrossSection } from "../engine/catalog/crossSections";
+import {
+  elementIdsOnNode,
+  loadsRemovedWithElement,
+  loadsRemovedWithNode,
+  normalizeDirection,
+} from "../engine/load";
 
 /**
  * A storable area/inertia: unassigned, or a finite positive number. The
@@ -14,6 +22,58 @@ import { findCrossSection } from "../engine/catalog/crossSections";
  */
 function isStorableProperty(value: number | null): boolean {
   return value === null || (Number.isFinite(value) && value > 0);
+}
+
+/**
+ * A storable Load magnitude: finite and strictly positive. Direction lives in
+ * `direction`, so a magnitude never carries a sign, and a zero-magnitude Load
+ * is not a Load at all. The properties panel rejects bad input field-level, but
+ * it is not the only writer -- a loaded Project (Epic 3) or an import path
+ * patches the store directly -- so the invariant is enforced here too.
+ */
+function isStorableMagnitude(value: number): boolean {
+  return Number.isFinite(value) && value > 0;
+}
+
+/**
+ * Does the entity a Load points at actually exist?
+ *
+ * An orphaned Load is invisible in the panel and skipped by the canvas, yet it
+ * still counts against the Structure Type guard -- a Project the user cannot
+ * see a reason for and has no control to fix. Refusing it on write is the only
+ * place that can be enforced for every caller.
+ */
+function hasTarget(load: Load, state: StructureState): boolean {
+  const { target } = load;
+  return target.type === "node"
+    ? state.nodes.some((node) => node.id === target.nodeId)
+    : state.elements.some((element) => element.id === target.elementId);
+}
+
+/**
+ * Applies a Load patch field by field, under the same rejection rule as
+ * `applyElementUpdate`: an unusable value is dropped from the patch rather
+ * than written, so the prior value stands and a sibling's valid edit still
+ * lands. Returns null when nothing in the patch was usable.
+ *
+ * Only `magnitude` and `direction` are read, whatever else a caller passes:
+ * `id`, `kind` and `target` are immutable, and spreading the patch would let
+ * an untyped caller rewrite them past every invariant here.
+ */
+function applyLoadUpdate(load: Load, patch: LoadPatch): Load | null {
+  let next = load;
+
+  if (patch.magnitude !== undefined && isStorableMagnitude(patch.magnitude)) {
+    next = { ...next, magnitude: patch.magnitude };
+  }
+  if (patch.direction !== undefined) {
+    // Copied and normalised, never written in by reference: the caller's array
+    // must not stay reachable from store state.
+    const direction = normalizeDirection(patch.direction);
+    if (direction) next = { ...next, direction };
+  }
+
+  return next === load ? null : next;
 }
 
 /**
@@ -108,6 +168,7 @@ const useStructureStore = create<StructureState>((set, get) => ({
   name: "",
   nodes: [],
   elements: [],
+  loads: [],
   analysisResults: undefined,
 
   addNode: (node) => set((state) => ({ nodes: [...state.nodes, node] })),
@@ -118,13 +179,23 @@ const useStructureStore = create<StructureState>((set, get) => ({
       ),
     })),
   deleteNode: (id) =>
-    set((state) => ({
-      nodes: state.nodes.filter((n) => n.id !== id),
-      // Cascade-delete: an Element can't reference a Node that no longer exists.
-      elements: state.elements.filter(
-        (e) => e.startNode !== id && e.endNode !== id,
-      ),
-    })),
+    set((state) => {
+      // Two-level cascade: the Node's Elements go with it, and so do the Loads
+      // on the Node *and* the UDLs on each of those Elements. The rule lives
+      // in `engine/load.ts` so the delete confirmation names exactly what this
+      // removes.
+      const removedElementIds = elementIdsOnNode(state.elements, id);
+      const removedLoadIds = new Set(
+        loadsRemovedWithNode(state.loads, state.elements, id).map((l) => l.id),
+      );
+      return {
+        nodes: state.nodes.filter((n) => n.id !== id),
+        // Cascade-delete: an Element can't reference a Node that no longer
+        // exists.
+        elements: state.elements.filter((e) => !removedElementIds.has(e.id)),
+        loads: state.loads.filter((load) => !removedLoadIds.has(load.id)),
+      };
+    }),
   addElement: (element) =>
     set((state) => ({ elements: [...state.elements, element] })),
 
@@ -135,15 +206,55 @@ const useStructureStore = create<StructureState>((set, get) => ({
       ),
     })),
   deleteElement: (id) =>
+    set((state) => {
+      // A UDL can't reference an Element that no longer exists. Loads on the
+      // Element's end Nodes belong to those Nodes and are untouched.
+      const removedLoadIds = new Set(
+        loadsRemovedWithElement(state.loads, id).map((load) => load.id),
+      );
+      return {
+        elements: state.elements.filter((e) => e.id !== id),
+        loads: state.loads.filter((load) => !removedLoadIds.has(load.id)),
+      };
+    }),
+  addLoad: (load) => {
+    // Reported back rather than silently dropped: the panel has a rejection
+    // message for exactly this and no other way to know it happened.
+    const state = get();
+    const direction = normalizeDirection(load.direction);
+    if (
+      !isStorableMagnitude(load.magnitude) ||
+      direction === null ||
+      !hasTarget(load, state)
+    ) {
+      return false;
+    }
+    // Each Load is its own list entry, never accumulated into a field (AD-10):
+    // two Loads on one Node both persist and are summed on read by
+    // `engine/loadResolution.ts`.
+    set({ loads: [...state.loads, { ...load, direction }] });
+    return true;
+  },
+  updateLoad: (id, updatedLoad) => {
+    const state = get();
+    const load = state.loads.find((l) => l.id === id);
+    if (!load) return false;
+    const next = applyLoadUpdate(load, updatedLoad);
+    if (!next) return false;
+    set({ loads: state.loads.map((l) => (l.id === id ? next : l)) });
+    return true;
+  },
+  deleteLoad: (id) =>
     set((state) => ({
-      elements: state.elements.filter((e) => e.id !== id),
+      loads: state.loads.filter((load) => load.id !== id),
     })),
   setStructureType: (type) => {
-    // Guard: once any Element/Support exists (a Support only ever exists on a
-    // Node), changing Structure Type is blocked. The calling UI is
-    // responsible for showing a warning based on the returned value.
-    const { nodes, elements } = get();
-    if (nodes.length > 0 || elements.length > 0) {
+    // Guard: once any Element/Support/Load exists (a Support only ever exists
+    // on a Node), changing Structure Type is blocked -- a Truss has no bending
+    // stiffness to carry a Frame's Loads. The calling UI is responsible for
+    // showing a warning based on the returned value.
+    const { nodes, elements, loads } = get();
+    if (nodes.length > 0 || elements.length > 0 || loads.length > 0) {
       return false;
     }
     set({ type });
@@ -156,6 +267,7 @@ const useStructureStore = create<StructureState>((set, get) => ({
       name: "",
       nodes: [],
       elements: [],
+      loads: [],
       analysisResults: undefined,
     }),
 }));

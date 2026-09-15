@@ -9,14 +9,7 @@
  * dimensions would otherwise only show up as taps mysteriously missing.
  */
 
-/**
- * z of an Element's pick proxy. Must stay below NODE_GLYPH_Z so a tap on a
- * shared endpoint resolves to the Node, which is the smaller target.
- */
-export const ELEMENT_PROXY_Z = 0.1;
-
-/** z the Node glyphs render at -- nearer the camera than any Element proxy. */
-export const NODE_GLYPH_Z = 0.2;
+import { ELEMENT_PROXY_Z } from "./canvasConstants";
 
 export interface PickProxy {
   /** Centre of the proxy plane, at ELEMENT_PROXY_Z. */

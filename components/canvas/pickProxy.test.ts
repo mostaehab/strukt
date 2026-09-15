@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest";
-import {
-  ELEMENT_PROXY_Z,
-  NODE_GLYPH_Z,
-  elementPickProxy,
-} from "./pickProxy";
+import { ELEMENT_PROXY_Z, NODE_GLYPH_Z } from "./canvasConstants";
+import { elementPickProxy } from "./pickProxy";
 
 describe("elementPickProxy", () => {
   it("centres the proxy on the Element's midpoint", () => {

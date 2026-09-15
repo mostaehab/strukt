@@ -4,6 +4,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import useStructureStore from "@/store/useStructureStore";
 import { createElement } from "@/engine/element";
+import { AXIS_DIRECTIONS, createLoad, nodeTarget } from "@/engine/load";
+import { elementTarget } from "@/engine/load";
 import type { StructuralNode } from "@/engine/types";
 
 // The real CanvasWorkspace mounts an r3f <Canvas>, which needs WebGL that jsdom
@@ -42,7 +44,7 @@ const OTHER_NODE_ID = "n2";
 const ELEMENT_ID = "el-1";
 
 function makeNode(id: string, x: number): StructuralNode {
-  return { id, x, y: 0, support: "FREE", fx: 0, fy: 0, mz: 0 };
+  return { id, x, y: 0, support: "FREE" };
 }
 
 function seedStructure() {
@@ -79,7 +81,8 @@ describe("Canvas Workspace selection shell", () => {
 
     fireEvent.click(screen.getByText("stub-select-node"));
     expect(screen.getByTestId("canvas-selected-node").textContent).toBe(NODE_ID);
-    screen.getByText(`Node ${NODE_ID}`);
+    // Positional label, not the stored UUID: the first seeded Node is N1.
+    screen.getByText("Node N1");
 
     fireEvent.click(screen.getByText("stub-select-element"));
     expect(screen.getByTestId("canvas-selected-node").textContent).toBe("null");
@@ -214,5 +217,127 @@ describe("Canvas Workspace selection shell", () => {
     fireEvent.click(screen.getByText("stub-select-element"));
     fireEvent.keyDown(window, { key: "Delete" });
     expect(elementCount()).toBe(0);
+  });
+});
+
+describe("Load interactions in the shell", () => {
+  function loads() {
+    return useStructureStore.getState().loads;
+  }
+
+  function magnitudeInput() {
+    return screen.getByLabelText("Magnitude (kN)") as HTMLInputElement;
+  }
+
+  function applyNodeLoad() {
+    useStructureStore
+      .getState()
+      .addLoad(
+        createLoad(
+          "load-1",
+          "concentrated",
+          nodeTarget(NODE_ID),
+          5000,
+          AXIS_DIRECTIONS["-y"],
+        ),
+      );
+  }
+
+  // The shell blurs the focused control before collapsing the panel. A blur
+  // used to apply the Load, so Escape mid-entry applied the very Load it was
+  // cancelling -- then hid the panel that would have shown it.
+  it("discards a half-typed Load magnitude on Escape", async () => {
+    seedStructure();
+    await renderHome();
+    fireEvent.click(screen.getByText("stub-select-node"));
+
+    const input = magnitudeInput();
+    input.focus();
+    fireEvent.change(input, { target: { value: "5" } });
+    fireEvent.keyDown(input, { key: "Escape" });
+
+    expect(loads()).toEqual([]);
+    expect(screen.getByTestId("canvas-selected-node").textContent).toBe("null");
+  });
+
+  // With a Load's delete control focused, Delete used to fall through to the
+  // global handler and offer to delete the whole Node.
+  it("ignores Delete while a panel button has focus", async () => {
+    seedStructure();
+    applyNodeLoad();
+    await renderHome();
+    fireEvent.click(screen.getByText("stub-select-node"));
+
+    const deleteLoad = screen.getByLabelText("Delete Load 1 on Node N1");
+    deleteLoad.focus();
+    fireEvent.keyDown(deleteLoad, { key: "Delete" });
+
+    expect(useStructureStore.getState().nodes).toHaveLength(2);
+    expect(loads()).toHaveLength(1);
+  });
+
+  it("names the Loads a Node delete is about to take with it", async () => {
+    seedStructure();
+    applyNodeLoad();
+    useStructureStore
+      .getState()
+      .addLoad(
+        createLoad(
+          "load-2",
+          "udl",
+          elementTarget(ELEMENT_ID),
+          2000,
+          AXIS_DIRECTIONS["-y"],
+        ),
+      );
+    await renderHome();
+
+    fireEvent.click(screen.getByText("stub-select-node"));
+    fireEvent.keyDown(window, { key: "Delete" });
+
+    expect(window.confirm).toHaveBeenCalledWith(
+      "Delete this Node, its connected Elements, and their Loads?",
+    );
+    // Two-level cascade: the Node, its Element, and both their Loads.
+    expect(loads()).toEqual([]);
+    expect(useStructureStore.getState().elements).toEqual([]);
+  });
+
+  it("still names only the Elements when no Load is affected", async () => {
+    seedStructure();
+    await renderHome();
+
+    fireEvent.click(screen.getByText("stub-select-node"));
+    fireEvent.keyDown(window, { key: "Delete" });
+
+    expect(window.confirm).toHaveBeenCalledWith(
+      "Delete this Node and its connected Elements?",
+    );
+  });
+
+  it("names the Loads an Element delete takes with it", async () => {
+    seedStructure();
+    useStructureStore
+      .getState()
+      .addLoad(
+        createLoad(
+          "load-2",
+          "udl",
+          elementTarget(ELEMENT_ID),
+          2000,
+          AXIS_DIRECTIONS["-y"],
+        ),
+      );
+    await renderHome();
+
+    fireEvent.click(screen.getByText("stub-select-element"));
+    fireEvent.keyDown(window, { key: "Delete" });
+
+    expect(window.confirm).toHaveBeenCalledWith(
+      "Delete this Element and its Loads?",
+    );
+    expect(loads()).toEqual([]);
+    // Loads on its end Nodes would have survived; it had none.
+    expect(useStructureStore.getState().nodes).toHaveLength(2);
   });
 });

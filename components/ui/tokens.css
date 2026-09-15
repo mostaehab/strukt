@@ -52,6 +52,12 @@
   --strukt-space-6: 32px;
 
   --strukt-radius-none: 0px;
+
+  /* Minimum tappable size for a control that isn't full-width, so a panel
+     control is no harder to hit than a canvas entity (WCAG 2.2 SC 2.5.8
+     target size, taken at the enhanced 44px rather than the 24px minimum --
+     this app is used one-handed on a tablet). */
+  --strukt-touch-target: 44px;
 }
 
 @media (prefers-color-scheme: dark) {

@@ -1,7 +1,16 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import useStructureStore from "./useStructureStore";
 import { findCrossSection } from "../engine/catalog/crossSections";
-import type { StructuralElement } from "../engine/types";
+import { createElement } from "../engine/element";
+import {
+  AXIS_DIRECTIONS,
+  createLoad,
+  elementTarget,
+  nodeTarget,
+  type AxisDirection,
+} from "../engine/load";
+import { resolveNodeLoad } from "../engine/loadResolution";
+import type { StructuralElement, StructuralNode } from "../engine/types";
 
 const W12X26 = findCrossSection("W12X26")!;
 const RECT = findCrossSection("RECT-300X500")!;
@@ -203,5 +212,417 @@ describe("updateElement Cross-Section invariants", () => {
     expect(element().crossSectionId).toBeNull();
     // The pre-existing manual override had no catalog pointer, so it stands.
     expect(element().area).toBe(0.01);
+  });
+});
+
+function node(id: string, x: number, y: number): StructuralNode {
+  return { id, x, y, support: "FREE" };
+}
+
+function loads() {
+  return useStructureStore.getState().loads;
+}
+
+function loadIds() {
+  return loads().map((load) => load.id);
+}
+
+/**
+ * Applies a concentrated Load, seeding its Node first when the test has not.
+ * The store refuses a Load whose target does not exist, so a Load in these
+ * tests always has a real Node behind it -- as it does in the app.
+ */
+function addNodeLoad(id: string, nodeId: string, axis: AxisDirection = "-y") {
+  const store = useStructureStore.getState();
+  if (!store.nodes.some((n) => n.id === nodeId)) {
+    store.addNode(node(nodeId, 0, 0));
+  }
+  return useStructureStore
+    .getState()
+    .addLoad(
+      createLoad(
+        id,
+        "concentrated",
+        nodeTarget(nodeId),
+        5000,
+        AXIS_DIRECTIONS[axis],
+      ),
+    );
+}
+
+/** As above, for a UDL: the Element (and its end Nodes) must exist first. */
+function addElementLoad(id: string, elementId: string) {
+  const store = useStructureStore.getState();
+  if (!store.elements.some((e) => e.id === elementId)) {
+    store.addElement(createElement(elementId, "seed-a", "seed-b"));
+  }
+  return useStructureStore
+    .getState()
+    .addLoad(
+      createLoad(
+        id,
+        "udl",
+        elementTarget(elementId),
+        2000,
+        AXIS_DIRECTIONS["-y"],
+      ),
+    );
+}
+
+describe("Load actions", () => {
+  beforeEach(() => {
+    useStructureStore.getState().clearAll();
+  });
+
+  it("starts with no Loads", () => {
+    expect(loads()).toEqual([]);
+  });
+
+  // Matrix row: Loads on one target sum -- both persist as separate entries,
+  // never accumulated into a field (AD-10).
+  it("keeps two Loads on one Node as separate entries", () => {
+    addNodeLoad("l1", "n1");
+    addNodeLoad("l2", "n1", "+y");
+    expect(loadIds()).toEqual(["l1", "l2"]);
+    // Matrix row: Opposing Loads cancel -- resolved off real store state, not
+    // just off a hand-built array in the engine test.
+    expect(resolveNodeLoad(loads(), "n1")).toEqual({ x: 0, y: 0 });
+  });
+
+  // Matrix row: Delete one of two Loads -- the other survives.
+  it("deletes one Load and leaves its sibling on the same Node", () => {
+    addNodeLoad("l1", "n1");
+    addNodeLoad("l2", "n1");
+    useStructureStore.getState().deleteLoad("l1");
+    expect(loadIds()).toEqual(["l2"]);
+    expect(resolveNodeLoad(loads(), "n1")).toEqual({ x: 0, y: -5000 });
+  });
+
+  it("updates a Load magnitude and direction in place", () => {
+    addNodeLoad("l1", "n1");
+    useStructureStore
+      .getState()
+      .updateLoad("l1", { magnitude: 8000, direction: [1, 0] });
+    expect(loads()[0].magnitude).toBe(8000);
+    expect(loads()[0].direction).toEqual([1, 0]);
+  });
+
+  // Matrix row: Non-positive magnitude. The panel rejects at the field, but it
+  // is not the only writer, so the invariant is enforced here too.
+  it("refuses a non-positive or non-finite magnitude from any caller", () => {
+    for (const bad of [0, -5, Number.NaN, Number.POSITIVE_INFINITY]) {
+      useStructureStore.getState().clearAll();
+      useStructureStore
+        .getState()
+        .addLoad(
+          createLoad("l1", "concentrated", nodeTarget("n1"), bad, [0, -1]),
+        );
+      expect(loads()).toEqual([]);
+    }
+  });
+
+  it("leaves a stored magnitude intact when an update carries a bad one", () => {
+    addNodeLoad("l1", "n1");
+    useStructureStore.getState().updateLoad("l1", { magnitude: 0 });
+    expect(loads()[0].magnitude).toBe(5000);
+    useStructureStore.getState().updateLoad("l1", { magnitude: Number.NaN });
+    expect(loads()[0].magnitude).toBe(5000);
+  });
+
+  it("leaves a stored direction intact when an update carries a bad one", () => {
+    addNodeLoad("l1", "n1");
+    useStructureStore
+      .getState()
+      .updateLoad("l1", { direction: [Number.NaN, 0] });
+    expect(loads()[0].direction).toEqual([0, -1]);
+  });
+
+  it("clears Loads along with everything else", () => {
+    addNodeLoad("l1", "n1");
+    useStructureStore.getState().clearAll();
+    expect(loads()).toEqual([]);
+  });
+});
+
+describe("Load referential integrity and normalisation", () => {
+  beforeEach(() => {
+    useStructureStore.getState().clearAll();
+  });
+
+  // An orphaned Load is invisible in the panel and skipped by the canvas, yet
+  // it still counts against the Structure Type guard -- a blocked Project with
+  // no visible cause and no control to clear it.
+  it("refuses a Load whose target Node does not exist", () => {
+    const applied = useStructureStore
+      .getState()
+      .addLoad(
+        createLoad("l1", "concentrated", nodeTarget("ghost"), 5000, [0, -1]),
+      );
+    expect(applied).toBe(false);
+    expect(loads()).toEqual([]);
+  });
+
+  it("refuses a UDL whose target Element does not exist", () => {
+    const applied = useStructureStore
+      .getState()
+      .addLoad(
+        createLoad("l1", "udl", elementTarget("ghost"), 2000, [0, -1]),
+      );
+    expect(applied).toBe(false);
+    expect(loads()).toEqual([]);
+  });
+
+  it("reports success when the Load is stored", () => {
+    expect(addNodeLoad("l1", "n1")).toBe(true);
+    expect(loadIds()).toEqual(["l1"]);
+  });
+
+  // Length is not a second magnitude: 5000 N along [0, -5000] is 5000 N down,
+  // not 25 MN down.
+  it("normalises a non-unit direction on the way in", () => {
+    useStructureStore.getState().addNode(node("n1", 0, 0));
+    useStructureStore
+      .getState()
+      .addLoad(
+        createLoad("l1", "concentrated", nodeTarget("n1"), 5000, [0, -5000]),
+      );
+    expect(loads()[0].direction).toEqual([0, -1]);
+    expect(resolveNodeLoad(loads(), "n1")).toEqual({ x: 0, y: -5000 });
+  });
+
+  it("leaves an already-unit direction exactly as it was", () => {
+    useStructureStore.getState().addNode(node("n1", 0, 0));
+    const diagonal: [number, number] = [Math.SQRT1_2, -Math.SQRT1_2];
+    useStructureStore
+      .getState()
+      .addLoad(
+        createLoad("l1", "concentrated", nodeTarget("n1"), 1000, diagonal),
+      );
+    expect(loads()[0].direction).toEqual(diagonal);
+  });
+
+  // [0, 0] would draw a convincing downward arrow while resolving to exactly
+  // zero -- a Load that looks applied and does nothing.
+  it("refuses a direction with no direction at all", () => {
+    useStructureStore.getState().addNode(node("n1", 0, 0));
+    const applied = useStructureStore
+      .getState()
+      .addLoad(createLoad("l1", "concentrated", nodeTarget("n1"), 5000, [0, 0]));
+    expect(applied).toBe(false);
+    expect(loads()).toEqual([]);
+  });
+
+  it("refuses a non-finite direction on the add path", () => {
+    useStructureStore.getState().addNode(node("n1", 0, 0));
+    for (const bad of [
+      [Number.NaN, 0],
+      [Number.POSITIVE_INFINITY, 1],
+    ] as [number, number][]) {
+      const applied = useStructureStore
+        .getState()
+        .addLoad(
+          createLoad("l1", "concentrated", nodeTarget("n1"), 5000, bad),
+        );
+      expect(applied).toBe(false);
+      expect(loads()).toEqual([]);
+    }
+  });
+
+  it("never keeps a reference to the caller's direction array", () => {
+    useStructureStore.getState().addNode(node("n1", 0, 0));
+    const mutable: [number, number] = [0, -1];
+    useStructureStore
+      .getState()
+      .addLoad(
+        createLoad("l1", "concentrated", nodeTarget("n1"), 5000, mutable),
+      );
+    mutable[0] = 99;
+    expect(loads()[0].direction).toEqual([0, -1]);
+
+    const patch: [number, number] = [1, 0];
+    useStructureStore.getState().updateLoad("l1", { direction: patch });
+    patch[1] = 99;
+    expect(loads()[0].direction).toEqual([1, 0]);
+  });
+
+  // Rewriting an id duplicates React keys and makes one deleteLoad remove two
+  // entries; retargeting points a Load at an entity the cascades never check.
+  it("refuses to rewrite a Load id, kind or target through updateLoad", () => {
+    addNodeLoad("l1", "n1");
+    useStructureStore.getState().updateLoad("l1", {
+      id: "l2",
+      kind: "udl",
+      target: elementTarget("e9"),
+      magnitude: 9000,
+    } as never);
+
+    const [load] = loads();
+    expect(load.id).toBe("l1");
+    expect(load.kind).toBe("concentrated");
+    expect(load.target).toEqual({ type: "node", nodeId: "n1" });
+    // The one mutable field in that patch still landed.
+    expect(load.magnitude).toBe(9000);
+  });
+
+  it("reports whether an update changed anything", () => {
+    addNodeLoad("l1", "n1");
+    expect(useStructureStore.getState().updateLoad("l1", { magnitude: 1 })).toBe(
+      true,
+    );
+    expect(useStructureStore.getState().updateLoad("l1", { magnitude: 0 })).toBe(
+      false,
+    );
+    expect(
+      useStructureStore.getState().updateLoad("gone", { magnitude: 1 }),
+    ).toBe(false);
+  });
+});
+
+describe("Load cascade deletes", () => {
+  beforeEach(() => {
+    useStructureStore.getState().clearAll();
+  });
+
+  // Matrix row: Node delete, two-level cascade -- the Node's own Loads *and*
+  // the UDLs on every Element the cascade removes with it.
+  it("removes a deleted Node's Loads and its Elements' UDLs together", () => {
+    const store = useStructureStore.getState();
+    store.addNode(node("n1", 0, 0));
+    store.addNode(node("n2", 2, 0));
+    store.addNode(node("n3", 5, 0));
+    store.addElement(createElement("e1", "n1", "n2"));
+    store.addElement(createElement("e2", "n2", "n3"));
+    addNodeLoad("l-n1", "n1");
+    addNodeLoad("l-n3", "n3");
+    addElementLoad("l-e1", "e1");
+    addElementLoad("l-e2", "e2");
+
+    useStructureStore.getState().deleteNode("n1");
+
+    // n1 went, e1 went with it, and both their Loads went with them; the
+    // untouched Node's Load and the untouched Element's UDL stayed.
+    expect(useStructureStore.getState().nodes.map((n) => n.id)).toEqual([
+      "n2",
+      "n3",
+    ]);
+    expect(useStructureStore.getState().elements.map((e) => e.id)).toEqual([
+      "e2",
+    ]);
+    expect(loadIds()).toEqual(["l-n3", "l-e2"]);
+  });
+
+  // Acceptance criterion: no Load referencing either removed entity remains.
+  it("leaves no orphaned Load pointing at a removed Node or Element", () => {
+    const store = useStructureStore.getState();
+    store.addNode(node("n1", 0, 0));
+    store.addNode(node("n2", 2, 0));
+    store.addElement(createElement("e1", "n1", "n2"));
+    addNodeLoad("l-n1", "n1");
+    addElementLoad("l-e1", "e1");
+
+    useStructureStore.getState().deleteNode("n1");
+
+    const state = useStructureStore.getState();
+    for (const load of state.loads) {
+      if (load.target.type === "node") {
+        const { nodeId } = load.target;
+        expect(state.nodes.some((n) => n.id === nodeId)).toBe(true);
+      } else {
+        const { elementId } = load.target;
+        expect(state.elements.some((e) => e.id === elementId)).toBe(true);
+      }
+    }
+    expect(loadIds()).toEqual([]);
+  });
+
+  it("keeps a Load on a Node the cascade never touched", () => {
+    const store = useStructureStore.getState();
+    store.addNode(node("n1", 0, 0));
+    store.addNode(node("n2", 2, 0));
+    store.addElement(createElement("e1", "n1", "n2"));
+    addNodeLoad("l-n2", "n2");
+
+    useStructureStore.getState().deleteNode("n1");
+    expect(loadIds()).toEqual(["l-n2"]);
+  });
+
+  // Matrix row: Element delete -- its UDLs go, Loads on its end Nodes stay.
+  it("removes a deleted Element's UDLs and leaves its end Nodes' Loads", () => {
+    const store = useStructureStore.getState();
+    store.addNode(node("n1", 0, 0));
+    store.addNode(node("n2", 2, 0));
+    store.addElement(createElement("e1", "n1", "n2"));
+    addNodeLoad("l-n1", "n1");
+    addNodeLoad("l-n2", "n2");
+    addElementLoad("l-e1", "e1");
+
+    useStructureStore.getState().deleteElement("e1");
+
+    expect(loadIds()).toEqual(["l-n1", "l-n2"]);
+    expect(useStructureStore.getState().nodes).toHaveLength(2);
+  });
+
+  it("leaves other Elements' UDLs alone when one Element is deleted", () => {
+    const store = useStructureStore.getState();
+    store.addNode(node("n1", 0, 0));
+    store.addNode(node("n2", 2, 0));
+    store.addNode(node("n3", 5, 0));
+    store.addElement(createElement("e1", "n1", "n2"));
+    store.addElement(createElement("e2", "n2", "n3"));
+    addElementLoad("l-e1", "e1");
+    addElementLoad("l-e2", "e2");
+
+    useStructureStore.getState().deleteElement("e1");
+    expect(loadIds()).toEqual(["l-e2"]);
+  });
+
+  // Matrix row: Load on an isolated Node -- stored, nothing blocks it here.
+  it("stores a Load on a Node with no Element", () => {
+    useStructureStore.getState().addNode(node("n1", 0, 0));
+    addNodeLoad("l1", "n1");
+    expect(loadIds()).toEqual(["l1"]);
+  });
+});
+
+describe("setStructureType Load guard", () => {
+  beforeEach(() => {
+    useStructureStore.getState().clearAll();
+  });
+
+  it("allows a switch on a genuinely empty Project", () => {
+    expect(useStructureStore.getState().setStructureType("TRUSS")).toBe(true);
+    expect(useStructureStore.getState().type).toBe("TRUSS");
+  });
+
+  // Matrix row: Structure Type switch with a Load -- blocked, alongside the
+  // existing Node/Element check.
+  //
+  // Set directly rather than through `addLoad`, which now refuses a Load whose
+  // target does not exist: this is the only way to reach the Load half of the
+  // guard on its own, with no Node or Element to trip the other half. It
+  // proves the Load clause is load-bearing rather than shadowed.
+  it("blocks a switch while any Load exists, with nothing else present", () => {
+    useStructureStore.setState({
+      loads: [
+        createLoad("l1", "concentrated", nodeTarget("gone"), 5000, [0, -1]),
+      ],
+    });
+    expect(useStructureStore.getState().nodes).toEqual([]);
+    expect(useStructureStore.getState().elements).toEqual([]);
+    expect(useStructureStore.getState().setStructureType("TRUSS")).toBe(false);
+    expect(useStructureStore.getState().type).toBe("FRAME");
+  });
+
+  it("blocks a switch while a Load applied through the store exists", () => {
+    addNodeLoad("l1", "n1");
+    expect(useStructureStore.getState().setStructureType("TRUSS")).toBe(false);
+    expect(useStructureStore.getState().type).toBe("FRAME");
+  });
+
+  it("allows a switch again once the Project is emptied", () => {
+    addNodeLoad("l1", "n1");
+    expect(useStructureStore.getState().setStructureType("TRUSS")).toBe(false);
+    useStructureStore.getState().clearAll();
+    expect(useStructureStore.getState().setStructureType("TRUSS")).toBe(true);
   });
 });

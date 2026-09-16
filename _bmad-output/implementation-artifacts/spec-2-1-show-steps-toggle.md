@@ -1,5 +1,5 @@
 ---
-title: 'Story 2.1 — Show Steps: toggle and local stiffness (FR-16, FR-17)'
+title: 'Story 2.1 — Show Steps (FR-16, FR-17, FR-18, FR-19)'
 type: 'feature'
 created: '2026-08-31'
 status: 'done'
@@ -136,3 +136,33 @@ Two interpretations are recorded in Design Notes rather than buried: the disable
 
 - Lifecycle, substituted values, Truss omission, and the Beam caption both ways
   [`ResultsArea.test.tsx:1`](../../components/panels/ResultsArea.test.tsx#L1)
+
+## Epic 2 completion — 2026-08-31
+
+FR-18 and FR-19 were built onto this story rather than specced separately, since
+both are presentation of data the solver already produced and neither changed
+the toggle or its lifecycle.
+
+**Two AD-3 extensions, both approved and both the same shape:** a value the
+solver already computes internally is carried out rather than rebuilt by the
+consumer.
+
+- `reducedSystem.restrainedDofs` (FR-19) — built in the same loop and from the
+  same labelling expression as `freeDofs`, so a DOF cannot be named by two
+  conventions. Tests pin the two lists as disjoint and exhaustive.
+- `elementDofs` and `globalStiffness` (FR-18) — recorded during assembly.
+  `elementDofs` carries the assembly's own ordering; rebuilding it from
+  `dofMap` and an Element's endpoints would be a second statement of the same
+  rule. A test asserts the reduced matrix is genuinely a sub-matrix of the
+  global one, which is what proves they are one assembly rather than two.
+
+**A rendering threshold, decided rather than discovered.** The global matrix is
+`3n x 3n`: a three-Node Frame is 9x9 and reads fine, but a classroom-scale
+structure is 150x150 — some 22,500 exponential terms, unreadable and slow to
+typeset. Above 12 DOFs the panel states the matrix's shape and declines to
+render it, which is honest; rendering it anyway would be a feature in name only.
+
+**A unit bug caught during FR-19:** displacements are stored in metres, and the
+first draft labelled them `ft` in Imperial without converting. Translations now
+convert; rotations stay in radians, which are dimensionless and identical in
+both systems.

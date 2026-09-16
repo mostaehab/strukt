@@ -267,6 +267,9 @@ export function solve(payload: EnginePayload): SolveOutcome {
   const globalF = new Array<number>(size).fill(0);
 
   const localStiffness: Record<string, number[][]> = {};
+  // Recorded during assembly rather than rebuilt afterwards: this ordering is
+  // the assembly's own, and FR-18 displays exactly it.
+  const elementDofIndices: Record<string, number[]> = {};
   const geometries = new Map<string, ElementGeometry>();
   // Kept so element end forces can subtract the equivalent loads back out.
   const equivalentLocal = new Map<string, number[]>();
@@ -291,6 +294,7 @@ export function solve(payload: EnginePayload): SolveOutcome {
     const T = transformationMatrix(structureType, geometry.cos, geometry.sin);
     const kGlobal = multiply(multiply(transpose(T), k), T);
     const dofs = elementDofs(element, dofMap, perNode);
+    elementDofIndices[element.id] = dofs;
 
     for (let i = 0; i < dofs.length; i += 1) {
       for (let j = 0; j < dofs.length; j += 1) {
@@ -505,6 +509,8 @@ export function solve(payload: EnginePayload): SolveOutcome {
       elementForces,
       localStiffness,
       dofMap,
+      elementDofs: elementDofIndices,
+      globalStiffness: globalK,
       reducedSystem: {
         K: reducedK,
         F: reducedF,

@@ -272,6 +272,57 @@ describe("Show Steps (FR-16, FR-17)", () => {
     expect(container.querySelectorAll(".katex").length).toBeGreaterThanOrEqual(3);
   });
 
+  it("numbers every Node's degrees of freedom (FR-18)", () => {
+    seedSolvedBeam();
+    render(<ResultsArea isBeamPreset={false} />);
+    fireEvent.click(stepsSwitch());
+    const panel = screen.getByLabelText("Show Steps");
+    expect(panel.textContent).toContain("Degree of freedom numbering");
+    expect(panel.textContent).toContain("Where each Element lands");
+  });
+
+  it("renders the assembled global matrix for a small structure", () => {
+    seedSolvedBeam();
+    render(<ResultsArea isBeamPreset={false} />);
+    fireEvent.click(stepsSwitch());
+    // Three Frame Nodes: 9x9, comfortably under the readable threshold.
+    screen.getByRole("img", { name: "Assembled global stiffness matrix" });
+  });
+
+  it("declines to render a global matrix too large to read", () => {
+    // Six Frame Nodes is 18x18, past the threshold: the panel says so rather
+    // than typesetting something unusable.
+    const store = useStructureStore.getState();
+    for (let i = 0; i < 6; i += 1) {
+      store.addNode({
+        id: `n${i}`,
+        x: i,
+        y: 0,
+        support: i === 0 ? "FIXED" : "FREE",
+      });
+    }
+    for (let i = 0; i < 5; i += 1) {
+      useStructureStore.getState().addElement(steel(`e${i}`, `n${i}`, `n${i + 1}`));
+    }
+    useStructureStore
+      .getState()
+      .addLoad(createLoad("p", "concentrated", nodeTarget("n5"), 5000, AXIS_DIRECTIONS["-y"]));
+    useStructureStore.getState().solve();
+
+    render(<ResultsArea isBeamPreset={false} />);
+    fireEvent.click(stepsSwitch());
+    expect(screen.queryByRole("img", { name: "Assembled global stiffness matrix" })).toBeNull();
+    expect(screen.getByLabelText("Show Steps").textContent).toContain("18 × 18");
+  });
+
+  it("omits the rotational DOF number for a Truss Node", () => {
+    seedSolvedTruss();
+    render(<ResultsArea isBeamPreset={false} />);
+    fireEvent.click(stepsSwitch());
+    // A Truss Node has no rotation to number, shown as an em dash.
+    expect(screen.getByLabelText("Show Steps").textContent).toContain("—");
+  });
+
   it("names the DOFs the Supports eliminated (FR-19)", () => {
     seedSolvedBeam();
     render(<ResultsArea isBeamPreset={false} />);

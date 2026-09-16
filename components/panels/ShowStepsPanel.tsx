@@ -6,6 +6,7 @@ import katex from "katex";
 import useStructureStore from "@/store/useStructureStore";
 import useUnitStore from "@/store/useUnitStore";
 import StiffnessMatrix from "./StiffnessMatrix";
+import GlobalAssembly from "./GlobalAssembly";
 import ReducedSystem from "./ReducedSystem";
 import { elementLabel } from "@/utils/labels";
 import {
@@ -160,6 +161,8 @@ export default function ShowStepsPanel({
           </article>
         );
       })}
+
+      <GlobalAssembly results={results} />
 
       <ReducedSystem results={results} />
     </section>

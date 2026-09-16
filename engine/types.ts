@@ -192,6 +192,25 @@ export interface SolveResult {
    */
   dofMap: Record<string, [number, number, number]>;
   /**
+   * Per Element: the global DOF indices its local matrix scatters into, in
+   * local matrix order. This is the local-to-global mapping FR-18 displays.
+   *
+   * Carried rather than rebuilt from `dofMap` and the Element's endpoints: the
+   * ordering is the assembly's own, and a consumer reconstructing it would be a
+   * second statement of the same rule that could fall out of step.
+   */
+  elementDofs: Record<string, number[]>;
+  /**
+   * The assembled global stiffness matrix, before boundary conditions reduce
+   * it -- the other half of what FR-18 displays. Square, of side
+   * (Nodes x DOF per Node).
+   *
+   * Never persisted (AD-3), so its size costs memory only; a classroom-scale
+   * frame is 150x150, which is large to hold but trivial beside the fact that
+   * it is unreadable on screen. The panel caps what it renders.
+   */
+  globalStiffness: number[][];
+  /**
    * The boundary-condition-reduced system FR-19 displays: the free-DOF
    * stiffness matrix, its load vector, and a human-readable label per free DOF
    * (for example `N1:ux`). `freeDofs` is carried rather than re-derived from

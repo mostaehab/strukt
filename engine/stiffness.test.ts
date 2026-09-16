@@ -238,6 +238,72 @@ describe("solve: the AD-3 contract", () => {
     ]);
   });
 
+  it("carries the assembled global matrix, square over every DOF", () => {
+    const outcome = solve(cantilever());
+    if (!outcome.ok) throw new Error("expected a solvable structure");
+    const K = outcome.result.globalStiffness;
+    // Two Frame Nodes: 6 DOFs.
+    expect(K).toHaveLength(6);
+    expect(K[0]).toHaveLength(6);
+  });
+
+  it("assembles a global matrix that is symmetric", () => {
+    const outcome = solve(
+      payload(
+        "FRAME",
+        [node("a", 0, 0, "FIXED"), node("b", 4, 0), node("c", 4, 3)],
+        [member("ab", "a", "b"), member("bc", "b", "c")],
+        [pointLoad("c", 1_000, [0, -1])],
+      ),
+    );
+    if (!outcome.ok) throw new Error("expected a solvable structure");
+    const K = outcome.result.globalStiffness;
+    for (let i = 0; i < K.length; i += 1) {
+      for (let j = 0; j < K.length; j += 1) {
+        // Symmetry survives assembly of rotated members, which is the property
+        // a scatter-add bug would break first.
+        expect(K[i][j]).toBeCloseTo(K[j][i], 6);
+      }
+    }
+  });
+
+  it("reduces the global matrix by exactly the restrained rows and columns", () => {
+    const outcome = solve(cantilever());
+    if (!outcome.ok) throw new Error("expected a solvable structure");
+    const { globalStiffness, reducedSystem, dofMap } = outcome.result;
+    // The cantilever's free DOFs are Node b's three; the reduced matrix must be
+    // the corresponding sub-matrix of the global one, not a separate assembly.
+    const free = dofMap.b;
+    for (let i = 0; i < 3; i += 1) {
+      for (let j = 0; j < 3; j += 1) {
+        expect(reducedSystem.K[i][j]).toBeCloseTo(
+          globalStiffness[free[i]][free[j]],
+          6,
+        );
+      }
+    }
+  });
+
+  it("records which global DOFs each Element scatters into", () => {
+    const outcome = solve(cantilever());
+    if (!outcome.ok) throw new Error("expected a solvable structure");
+    // Start Node's three, then end Node's three -- the assembly's own order.
+    expect(outcome.result.elementDofs.ab).toEqual([0, 1, 2, 3, 4, 5]);
+  });
+
+  it("gives a Truss Element four DOF slots, not six", () => {
+    const outcome = solve(
+      payload(
+        "TRUSS",
+        [node("a", 0, 0, "HINGE"), node("b", 4, 0, "HINGE"), node("c", 2, 3)],
+        [member("ac", "a", "c"), member("bc", "b", "c")],
+        [pointLoad("c", 1_000, [0, -1])],
+      ),
+    );
+    if (!outcome.ok) throw new Error("expected a solvable truss");
+    expect(outcome.result.elementDofs.ac).toHaveLength(4);
+  });
+
   it("names the DOFs the Supports eliminated", () => {
     const outcome = solve(cantilever());
     if (!outcome.ok) throw new Error("expected a solvable structure");

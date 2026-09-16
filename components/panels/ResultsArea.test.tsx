@@ -261,6 +261,17 @@ describe("Show Steps (FR-16, FR-17)", () => {
     );
   });
 
+  it("renders every equation in the panel, with nothing left unparsed", () => {
+    seedSolvedBeam();
+    const { container } = render(<ResultsArea isBeamPreset />);
+    fireEvent.click(stepsSwitch());
+    // Covers the symbolic formula and both numeric matrices at once. KaTeX
+    // marks a parse failure with this class rather than throwing, so without
+    // this the broken source renders and every other assertion still passes.
+    expect(container.querySelectorAll(".katex-error")).toHaveLength(0);
+    expect(container.querySelectorAll(".katex").length).toBeGreaterThanOrEqual(3);
+  });
+
   it("never captions a non-Beam Project", () => {
     seedSolvedBeam();
     render(<ResultsArea isBeamPreset={false} />);

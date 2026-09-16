@@ -626,3 +626,184 @@ describe("setStructureType Load guard", () => {
     expect(useStructureStore.getState().setStructureType("TRUSS")).toBe(true);
   });
 });
+
+/**
+ * AD-3's stale-results rule: an answer must never outlive the structure it was
+ * computed from, and the clearing must happen in the mutation's own action --
+ * not in an effect, which would repaint one frame showing a stale result.
+ *
+ * Each case below solves a real structure, asserts a result exists, performs
+ * one mutation, and asserts the result is gone. Every one of the nine
+ * mutations gets its own case, because the rule is enforced at nine separate
+ * sites and a missed one is invisible until a student trusts a stale number.
+ */
+function solvableBeam() {
+  const store = useStructureStore.getState();
+  store.clearAll();
+  const fresh = useStructureStore.getState();
+  fresh.addNode({ id: "s1", x: 0, y: 0, support: "FIXED" });
+  fresh.addNode({ id: "s2", x: 4, y: 0, support: "FREE" });
+  fresh.addElement({
+    id: "se1",
+    material: "STEEL",
+    startNode: "s1",
+    endNode: "s2",
+    crossSectionId: null,
+    area: 0.01,
+    inertia: 8e-5,
+  });
+  useStructureStore
+    .getState()
+    .addLoad(createLoad("sl1", "concentrated", nodeTarget("s2"), 5000, AXIS_DIRECTIONS["-y"]));
+  useStructureStore.getState().solve();
+}
+
+function hasResults() {
+  return useStructureStore.getState().results !== null;
+}
+
+describe("solve", () => {
+  beforeEach(() => useStructureStore.getState().clearAll());
+
+  it("stores a result for a solvable structure", () => {
+    solvableBeam();
+    expect(hasResults()).toBe(true);
+    expect(useStructureStore.getState().solveErrors).toEqual([]);
+  });
+
+  it("stores the refusal instead of a result when Solve is blocked", () => {
+    useStructureStore.getState().solve();
+    expect(useStructureStore.getState().results).toBeNull();
+    expect(useStructureStore.getState().solveErrors[0].code).toBe(
+      "NOTHING_TO_ANALYZE",
+    );
+  });
+
+  it("drops a previous result when a later Solve is refused", () => {
+    solvableBeam();
+    expect(hasResults()).toBe(true);
+    // Free the base, then Solve again: the old answer must not survive beside
+    // the new complaint (FR-16).
+    useStructureStore.getState().updateNode("s1", { support: "FREE" });
+    useStructureStore.getState().solve();
+    expect(useStructureStore.getState().results).toBeNull();
+    expect(useStructureStore.getState().solveErrors.length).toBeGreaterThan(0);
+  });
+
+  it("closes Show Steps when a Solve is refused", () => {
+    solvableBeam();
+    useStructureStore.getState().setShowSteps(true);
+    useStructureStore.getState().updateNode("s1", { support: "FREE" });
+    useStructureStore.getState().solve();
+    expect(useStructureStore.getState().showSteps).toBe(false);
+  });
+
+  it("replaces the previous result rather than accumulating errors", () => {
+    solvableBeam();
+    useStructureStore.getState().solve();
+    expect(useStructureStore.getState().solveErrors).toEqual([]);
+    expect(hasResults()).toBe(true);
+  });
+});
+
+describe("stale-results invalidation (AD-3)", () => {
+  beforeEach(() => useStructureStore.getState().clearAll());
+
+  it("clears results when a Node is added", () => {
+    solvableBeam();
+    useStructureStore.getState().addNode({ id: "x", x: 9, y: 9, support: "FREE" });
+    expect(hasResults()).toBe(false);
+  });
+
+  it("clears results when a Node is moved", () => {
+    solvableBeam();
+    useStructureStore.getState().updateNode("s2", { x: 5 });
+    expect(hasResults()).toBe(false);
+  });
+
+  it("clears results when a Node is deleted", () => {
+    solvableBeam();
+    useStructureStore.getState().deleteNode("s2");
+    expect(hasResults()).toBe(false);
+  });
+
+  it("clears results when an Element is added", () => {
+    solvableBeam();
+    useStructureStore.getState().addElement(createElement("x", "s1", "s2"));
+    expect(hasResults()).toBe(false);
+  });
+
+  it("clears results when an Element is changed", () => {
+    solvableBeam();
+    useStructureStore.getState().updateElement("se1", { area: 0.02 });
+    expect(hasResults()).toBe(false);
+  });
+
+  it("clears results when an Element is deleted", () => {
+    solvableBeam();
+    useStructureStore.getState().deleteElement("se1");
+    expect(hasResults()).toBe(false);
+  });
+
+  it("clears results when a Load is added", () => {
+    solvableBeam();
+    useStructureStore
+      .getState()
+      .addLoad(createLoad("x", "concentrated", nodeTarget("s2"), 1000, AXIS_DIRECTIONS["-y"]));
+    expect(hasResults()).toBe(false);
+  });
+
+  it("clears results when a Load is changed", () => {
+    solvableBeam();
+    useStructureStore.getState().updateLoad("sl1", { magnitude: 9000 });
+    expect(hasResults()).toBe(false);
+  });
+
+  it("clears results when a Load is deleted", () => {
+    solvableBeam();
+    useStructureStore.getState().deleteLoad("sl1");
+    expect(hasResults()).toBe(false);
+  });
+
+  it("clears Show Steps alongside the results", () => {
+    solvableBeam();
+    useStructureStore.getState().setShowSteps(true);
+    useStructureStore.getState().updateNode("s2", { x: 5 });
+    expect(useStructureStore.getState().showSteps).toBe(false);
+  });
+
+  it("clears a standing refusal too, since the complaint may no longer be true", () => {
+    useStructureStore.getState().solve();
+    expect(useStructureStore.getState().solveErrors.length).toBeGreaterThan(0);
+    useStructureStore.getState().addNode({ id: "x", x: 0, y: 0, support: "FREE" });
+    expect(useStructureStore.getState().solveErrors).toEqual([]);
+  });
+
+  it("keeps results when a Load write is rejected -- nothing changed", () => {
+    solvableBeam();
+    // A rejected write is not an edit: the structure is untouched, so the
+    // result is still true of it.
+    const accepted = useStructureStore.getState().updateLoad("sl1", { magnitude: -5 });
+    expect(accepted).toBe(false);
+    expect(hasResults()).toBe(true);
+  });
+
+  it("keeps results when an addLoad is rejected", () => {
+    solvableBeam();
+    const accepted = useStructureStore
+      .getState()
+      .addLoad(createLoad("x", "concentrated", nodeTarget("nope"), 1000, AXIS_DIRECTIONS["-y"]));
+    expect(accepted).toBe(false);
+    expect(hasResults()).toBe(true);
+  });
+
+  it("clears everything on clearAll", () => {
+    solvableBeam();
+    useStructureStore.getState().setShowSteps(true);
+    useStructureStore.getState().clearAll();
+    const state = useStructureStore.getState();
+    expect(state.results).toBeNull();
+    expect(state.solveErrors).toEqual([]);
+    expect(state.showSteps).toBe(false);
+  });
+});

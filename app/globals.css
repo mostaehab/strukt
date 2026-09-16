@@ -271,3 +271,68 @@ body {
   outline: 2px solid var(--strukt-color-accent-primary);
   outline-offset: 2px;
 }
+
+/* Solve control and the banner explaining a refused attempt. Sits between the
+   toolbar and the canvas, which is where EXPERIENCE.md puts the banner -- the
+   same place every time, so it never has to be hunted for. */
+.solve-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--strukt-space-3);
+  padding: var(--strukt-space-2) var(--strukt-space-4);
+  border-bottom: 1px solid var(--strukt-color-border-hairline);
+  background: var(--strukt-color-surface);
+}
+
+.solve-button {
+  padding: var(--strukt-space-2) var(--strukt-space-5);
+  border: 1px solid var(--strukt-color-accent-primary);
+  border-radius: var(--strukt-radius-none);
+  background: var(--strukt-color-accent-primary);
+  color: var(--strukt-color-surface);
+  font-size: var(--strukt-font-label-size);
+  font-weight: var(--strukt-font-label-weight);
+  letter-spacing: var(--strukt-font-label-tracking);
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+/* Blocked is a *state*, not a disabled control: the button stays operable and
+   keeps explaining itself, so the outline shifts rather than the button
+   greying out and going silent. */
+.solve-button-blocked {
+  border-color: var(--strukt-color-accent-danger);
+  background: var(--strukt-color-surface);
+  color: var(--strukt-color-accent-danger);
+}
+
+.solve-state {
+  font-family: var(--strukt-font-numeral);
+  font-size: var(--strukt-font-numeral-size);
+  color: var(--strukt-color-ink-secondary);
+}
+
+/* Present even when empty: an aria-live region introduced to the DOM at the
+   same moment as its content is not reliably announced. */
+.error-banner-region {
+  flex: 1 1 100%;
+}
+
+.error-banner {
+  padding: var(--strukt-space-2) var(--strukt-space-3);
+  border: 1px solid var(--strukt-color-accent-danger);
+  border-radius: var(--strukt-radius-none);
+  background: var(--strukt-color-error-banner-fill);
+  color: var(--strukt-color-accent-danger);
+  font-family: var(--strukt-font-numeral);
+  font-size: var(--strukt-font-numeral-size);
+}
+
+.error-banner p {
+  margin: 0;
+}
+
+.error-banner p + p {
+  margin-top: var(--strukt-space-1);
+}

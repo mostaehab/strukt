@@ -6,6 +6,7 @@ import PropertiesPanel, {
   type StructurePreset,
 } from "@/components/panels/PropertiesPanel";
 import CanvasWorkspace from "@/components/canvas/CanvasWorkspace";
+import SolveBar from "@/components/panels/SolveBar";
 import useStructureStore from "@/store/useStructureStore";
 import {
   loadsRemovedWithElement,
@@ -158,6 +159,7 @@ export default function Home() {
   return (
     <div className="app-shell">
       <Toolbar tool={tool} onToolChange={setTool} />
+      <SolveBar />
       <div className="workspace-body">
         <CanvasWorkspace
           tool={tool}

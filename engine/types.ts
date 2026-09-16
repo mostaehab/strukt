@@ -111,33 +111,6 @@ export interface StructuralElement {
   inertia: number | null;
 }
 
-interface NodeResult {
-  ux: number;
-  uy: number;
-  theta_z: number;
-  rx: number;
-  ry: number;
-  rmz: number;
-}
-
-interface ElementResult {
-  axialForce: number;
-  shearForce: number;
-  bendingMoment: number;
-  stress: number;
-}
-
-/**
- * @deprecated Superseded by `SolveResult`, which is AD-3's contract. These
- * three shapes predate it and carry none of the intermediate quantities Show
- * Steps needs. Still referenced by `StructureState.analysisResults`; both go
- * when Story 1.5b renames that field to `results`.
- */
-export interface AnalysisResults {
-  nodeResults: Record<string, NodeResult>;
-  elementResults: Record<string, ElementResult>;
-}
-
 /** Sentinel in `dofMap` for a degree of freedom this Structure Type has none of. */
 export const NO_DOF = -1;
 
@@ -247,7 +220,21 @@ export interface StructureState {
   nodes: StructuralNode[];
   elements: StructuralElement[];
   loads: Load[];
-  analysisResults?: AnalysisResults;
+  /**
+   * The last successful Solve, or null when there is none (AD-2's renamed
+   * field). Cleared by any structural edit in that edit's own action (AD-3),
+   * so a displayed answer is always true of the structure on screen. Never
+   * persisted (AD-3).
+   */
+  results: SolveResult | null;
+  /** Why the last Solve was refused. Empty when nothing has been refused. */
+  solveErrors: SolveError[];
+  /**
+   * Whether Show Steps is open (AD-2). Epic 2 renders it; the field lives here
+   * now because AD-3's stale-results rule has to clear it alongside `results`,
+   * and retrofitting that across nine mutations later is how it gets missed.
+   */
+  showSteps: boolean;
 
   addNode: (node: StructuralNode) => void;
   updateNode: (id: string, updatedNode: Partial<StructuralNode>) => void;
@@ -264,7 +251,13 @@ export interface StructureState {
   updateLoad: (id: string, updatedLoad: LoadPatch) => boolean;
   deleteLoad: (id: string) => void;
   setStructureType: (type: StructureType) => boolean;
-  setAnalysisResults: (results: AnalysisResults) => void;
+  /**
+   * Runs the engine against the current structure and stores the outcome:
+   * `results` on success, `solveErrors` on a refusal. Exactly one `solve()`
+   * call per invocation -- nothing recomputes any part of the result (AD-3).
+   */
+  solve: () => void;
+  setShowSteps: (value: boolean) => void;
   clearAll: () => void;
 }
 

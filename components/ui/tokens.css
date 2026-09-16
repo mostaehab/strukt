@@ -17,6 +17,9 @@
   /* Field-level rejection + (Story 1.5) blocked-Solve chrome. Never the sole
      carrier of meaning -- always paired with text. */
   --strukt-color-accent-danger: #b3261e;
+  /* The error banner is the one status surface DESIGN.md allows a filled
+     background -- every other tag and badge is outline-only. */
+  --strukt-color-error-banner-fill: #fcebea;
   --strukt-color-border-hairline: #c3cad4;
 
   /* Typography: engineering values are always set in the numeral (monospace)
@@ -68,6 +71,7 @@
     --strukt-color-ink-secondary: #a1a8b3;
     --strukt-color-accent-primary: #6d97f2;
     --strukt-color-accent-danger: #ff6b5e;
+    --strukt-color-error-banner-fill: rgba(255, 107, 94, 0.14);
     --strukt-color-border-hairline: #3a3f47;
   }
 }

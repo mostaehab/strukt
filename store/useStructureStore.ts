@@ -6,6 +6,7 @@ import {
   LoadPatch,
   Material,
 } from "../engine/types";
+import { solve as engineSolve } from "../engine/stiffness";
 import { findCrossSection } from "../engine/catalog/crossSections";
 import {
   elementIdsOnNode,
@@ -163,20 +164,40 @@ function applyElementUpdate(
   return next;
 }
 
+/**
+ * What every structural edit resets.
+ *
+ * AD-3's stale-results rule: an answer must never outlive the structure it was
+ * computed from, and the clearing happens *in the mutation's own action* --
+ * not in an effect watching the structure, which would repaint one frame
+ * showing a stale result before catching up. Spread into what each mutation
+ * returns so there is one statement of the rule rather than nine.
+ */
+function invalidated(): Pick<
+  StructureState,
+  "results" | "solveErrors" | "showSteps"
+> {
+  return { results: null, solveErrors: [], showSteps: false };
+}
+
 const useStructureStore = create<StructureState>((set, get) => ({
   type: "FRAME",
   name: "",
   nodes: [],
   elements: [],
   loads: [],
-  analysisResults: undefined,
+  results: null,
+  solveErrors: [],
+  showSteps: false,
 
-  addNode: (node) => set((state) => ({ nodes: [...state.nodes, node] })),
+  addNode: (node) =>
+    set((state) => ({ nodes: [...state.nodes, node], ...invalidated() })),
   updateNode: (id, updatedNode) =>
     set((state) => ({
       nodes: state.nodes.map((node) =>
         node.id === id ? { ...node, ...updatedNode } : node,
       ),
+      ...invalidated(),
     })),
   deleteNode: (id) =>
     set((state) => {
@@ -194,16 +215,21 @@ const useStructureStore = create<StructureState>((set, get) => ({
         // exists.
         elements: state.elements.filter((e) => !removedElementIds.has(e.id)),
         loads: state.loads.filter((load) => !removedLoadIds.has(load.id)),
+        ...invalidated(),
       };
     }),
   addElement: (element) =>
-    set((state) => ({ elements: [...state.elements, element] })),
+    set((state) => ({
+      elements: [...state.elements, element],
+      ...invalidated(),
+    })),
 
   updateElement: (id, updatedElement) =>
     set((state) => ({
       elements: state.elements.map((e) =>
         e.id === id ? applyElementUpdate(e, updatedElement) : e,
       ),
+      ...invalidated(),
     })),
   deleteElement: (id) =>
     set((state) => {
@@ -215,6 +241,7 @@ const useStructureStore = create<StructureState>((set, get) => ({
       return {
         elements: state.elements.filter((e) => e.id !== id),
         loads: state.loads.filter((load) => !removedLoadIds.has(load.id)),
+        ...invalidated(),
       };
     }),
   addLoad: (load) => {
@@ -232,7 +259,7 @@ const useStructureStore = create<StructureState>((set, get) => ({
     // Each Load is its own list entry, never accumulated into a field (AD-10):
     // two Loads on one Node both persist and are summed on read by
     // `engine/loadResolution.ts`.
-    set({ loads: [...state.loads, { ...load, direction }] });
+    set({ loads: [...state.loads, { ...load, direction }], ...invalidated() });
     return true;
   },
   updateLoad: (id, updatedLoad) => {
@@ -241,12 +268,16 @@ const useStructureStore = create<StructureState>((set, get) => ({
     if (!load) return false;
     const next = applyLoadUpdate(load, updatedLoad);
     if (!next) return false;
-    set({ loads: state.loads.map((l) => (l.id === id ? next : l)) });
+    set({
+      loads: state.loads.map((l) => (l.id === id ? next : l)),
+      ...invalidated(),
+    });
     return true;
   },
   deleteLoad: (id) =>
     set((state) => ({
       loads: state.loads.filter((load) => load.id !== id),
+      ...invalidated(),
     })),
   setStructureType: (type) => {
     // Guard: once any Element/Support/Load exists (a Support only ever exists
@@ -257,10 +288,24 @@ const useStructureStore = create<StructureState>((set, get) => ({
     if (nodes.length > 0 || elements.length > 0 || loads.length > 0) {
       return false;
     }
-    set({ type });
+    // Only reachable on an empty Project, so there is nothing to invalidate --
+    // reset anyway, so the rule holds without depending on that guard.
+    set({ type, ...invalidated() });
     return true;
   },
-  setAnalysisResults: (analysisResults) => set({ analysisResults }),
+  solve: () => {
+    const { type, nodes, elements, loads } = get();
+    const outcome = engineSolve({ type, nodes, elements, loads });
+    // One solve() call, one result. A blocked Solve clears any previous answer
+    // and closes Show Steps with it (FR-16) -- a refusal must not leave the
+    // last successful result on screen beside it.
+    set(
+      outcome.ok
+        ? { results: outcome.result, solveErrors: [], showSteps: false }
+        : { results: null, solveErrors: outcome.errors, showSteps: false },
+    );
+  },
+  setShowSteps: (value) => set({ showSteps: value }),
   clearAll: () =>
     set({
       type: "FRAME",
@@ -268,7 +313,7 @@ const useStructureStore = create<StructureState>((set, get) => ({
       nodes: [],
       elements: [],
       loads: [],
-      analysisResults: undefined,
+      ...invalidated(),
     }),
 }));
 

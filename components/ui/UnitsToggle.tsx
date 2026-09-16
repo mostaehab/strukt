@@ -2,16 +2,23 @@
 
 import useUnitStore, { type UnitSystem } from "@/store/useUnitStore";
 
+/**
+ * Option labels name the units themselves rather than just the system, so a
+ * student can see what they are switching to without having to know which
+ * convention "Imperial" implies here.
+ */
 const SYSTEMS: { value: UnitSystem; label: string }[] = [
-  { value: "SI", label: "SI" },
-  { value: "IMPERIAL", label: "Imperial" },
+  { value: "SI", label: "SI — kN, m" },
+  { value: "IMPERIAL", label: "Imperial — kip, ft" },
 ];
 
 /**
- * SI / Imperial switch (FR-20).
+ * SI / Imperial selector (FR-20).
  *
- * A segmented control with an underlined active state, which is what
- * `components.units-toggle` specifies -- not a filled pill.
+ * A dropdown by explicit request. `components.units-toggle` specifies a
+ * segmented control with an underlined active state, so this is a deliberate
+ * divergence from the design spine rather than an oversight -- noted here so a
+ * later reader does not "fix" it back.
  *
  * Changing it converts what is displayed and nothing else: the stored values
  * stay SI (AD-4), so switching back and forth cannot drift what was entered,
@@ -23,18 +30,20 @@ export default function UnitsToggle() {
   const setSystem = useUnitStore((s) => s.setSystem);
 
   return (
-    <div className="units-toggle" role="group" aria-label="Unit system">
-      {SYSTEMS.map((option) => (
-        <button
-          key={option.value}
-          type="button"
-          className={`theme-option${system === option.value ? " is-active" : ""}`}
-          aria-pressed={system === option.value}
-          onClick={() => setSystem(option.value)}
-        >
-          {option.label}
-        </button>
-      ))}
+    <div className="units-toggle">
+      <label htmlFor="unit-system">Units</label>
+      <select
+        id="unit-system"
+        className="units-select"
+        value={system}
+        onChange={(event) => setSystem(event.target.value as UnitSystem)}
+      >
+        {SYSTEMS.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
     </div>
   );
 }

@@ -7,8 +7,12 @@ import useUnitStore from "@/store/useUnitStore";
 import useStructureStore from "@/store/useStructureStore";
 import { AXIS_DIRECTIONS, createLoad, nodeTarget } from "@/engine/load";
 
-function option(name: string) {
-  return screen.getByRole("button", { name });
+function unitSelect() {
+  return screen.getByLabelText("Units") as HTMLSelectElement;
+}
+
+function choose(system: string) {
+  fireEvent.change(unitSelect(), { target: { value: system } });
 }
 
 function seedSolvedBeam() {
@@ -40,14 +44,25 @@ afterEach(cleanup);
 describe("UnitsToggle", () => {
   it("starts on SI", () => {
     render(<UnitsToggle />);
-    expect(option("SI").getAttribute("aria-pressed")).toBe("true");
-    expect(option("Imperial").getAttribute("aria-pressed")).toBe("false");
+    expect(unitSelect().value).toBe("SI");
   });
 
   it("switches the preference", () => {
     render(<UnitsToggle />);
-    fireEvent.click(option("Imperial"));
+    choose("IMPERIAL");
     expect(useUnitStore.getState().system).toBe("IMPERIAL");
+  });
+
+  it("names the units in each option, not just the system", () => {
+    render(<UnitsToggle />);
+    const labels = Array.from(unitSelect().options).map((o) => o.textContent);
+    expect(labels[0]).toContain("kN");
+    expect(labels[1]).toContain("kip");
+  });
+
+  it("is reachable by its label", () => {
+    render(<UnitsToggle />);
+    expect(unitSelect().tagName).toBe("SELECT");
   });
 
   // The AC that matters most: a unit change is not a structural edit (AD-4).
@@ -57,9 +72,9 @@ describe("UnitsToggle", () => {
     expect(before).not.toBeNull();
 
     render(<UnitsToggle />);
-    fireEvent.click(option("Imperial"));
-    fireEvent.click(option("SI"));
-    fireEvent.click(option("Imperial"));
+    choose("IMPERIAL");
+    choose("SI");
+    choose("IMPERIAL");
 
     // Same object, not merely an equal one: nothing re-solved or re-derived.
     expect(useStructureStore.getState().results).toBe(before);
@@ -72,8 +87,8 @@ describe("UnitsToggle", () => {
     const storedMagnitude = useStructureStore.getState().loads[0].magnitude;
 
     render(<UnitsToggle />);
-    fireEvent.click(option("Imperial"));
-    fireEvent.click(option("SI"));
+    choose("IMPERIAL");
+    choose("SI");
 
     // Bit-identical: the store is always SI, so a toggle cannot drift it.
     expect(useStructureStore.getState().elements[0].area).toBe(storedArea);
@@ -84,7 +99,7 @@ describe("UnitsToggle", () => {
     seedSolvedBeam();
     useStructureStore.getState().setShowSteps(true);
     render(<UnitsToggle />);
-    fireEvent.click(option("Imperial"));
+    choose("IMPERIAL");
     expect(useStructureStore.getState().showSteps).toBe(true);
   });
 });

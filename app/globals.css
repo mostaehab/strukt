@@ -524,7 +524,26 @@ body {
 .units-toggle {
   margin-left: auto;
   display: inline-flex;
-  gap: var(--strukt-space-1);
+  align-items: center;
+  gap: var(--strukt-space-2);
+}
+
+.units-toggle label {
+  font-size: var(--strukt-font-label-size);
+  font-weight: var(--strukt-font-label-weight);
+  letter-spacing: var(--strukt-font-label-tracking);
+  text-transform: uppercase;
+  color: var(--strukt-color-ink-secondary);
+}
+
+.units-select {
+  border: 1px solid var(--strukt-color-border-hairline);
+  border-radius: var(--strukt-radius-none);
+  background: var(--strukt-color-surface);
+  color: var(--strukt-color-ink-primary);
+  padding: var(--strukt-space-1) var(--strukt-space-2);
+  font-family: var(--strukt-font-numeral);
+  font-size: var(--strukt-font-numeral-size);
 }
 
 .theme-toggle {

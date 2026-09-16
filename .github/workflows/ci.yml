@@ -1,0 +1,46 @@
+# Architecture AD-9: the Vitest suite runs against engine/ in CI and gates
+# merge. It is not optional tooling -- FR-11's tolerance and NFR1's
+# ≤0.1% correctness guarantee have no enforcement mechanism without it.
+name: CI
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+
+# A newer push to the same branch makes an in-flight run obsolete.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # Pinned to the version the project is developed against rather than
+          # "latest", so a Node release cannot break the build unannounced.
+          node-version: "24"
+          cache: npm
+
+      # `npm ci` rather than `npm install`: it installs exactly the lockfile
+      # and fails if package.json and the lock have drifted apart.
+      - run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      # The AD-9 gate. Covers the benchmark suite (six closed-form textbook
+      # problems at ≤0.1%) alongside everything else.
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build

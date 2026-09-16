@@ -735,3 +735,218 @@ body {
   overflow-x: auto;
   color: var(--strukt-color-ink-primary);
 }
+
+/* ---------------------------------------------------------------------------
+   Landing page. Same register as the app itself -- hairline strokes, zero
+   corner-radius, one accent, monospace for anything technical -- so arriving at
+   the canvas feels like the same product rather than a different one.
+   --------------------------------------------------------------------------- */
+
+.landing {
+  /* The canvas's own graph paper, quietly. Ties the page to the product
+     without a background image to load. */
+  background-image: radial-gradient(
+    var(--strukt-color-border-hairline) 1px,
+    transparent 1px
+  );
+  background-size: 24px 24px;
+  background-color: var(--strukt-color-background);
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.landing-hero {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--strukt-space-6);
+  max-width: 1080px;
+  width: 100%;
+  margin: 0 auto;
+  padding: var(--strukt-space-6) var(--strukt-space-5);
+}
+
+.landing-intro {
+  flex: 1 1 340px;
+}
+
+.landing-eyebrow {
+  margin: 0 0 var(--strukt-space-3);
+  font-family: var(--strukt-font-numeral);
+  font-size: var(--strukt-font-numeral-sm-size);
+  letter-spacing: var(--strukt-font-label-tracking);
+  text-transform: uppercase;
+  color: var(--strukt-color-accent-primary);
+}
+
+.landing-title {
+  margin: 0 0 var(--strukt-space-3);
+  font-size: clamp(2.75rem, 8vw, 4.5rem);
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: var(--strukt-color-ink-primary);
+}
+
+.landing-lede {
+  margin: 0 0 var(--strukt-space-5);
+  max-width: 46ch;
+  font-size: 1.05rem;
+  line-height: 1.6;
+  color: var(--strukt-color-ink-secondary);
+}
+
+/* Same shape as the Solve button: this is the primary action of the page. */
+.landing-cta {
+  display: inline-block;
+  padding: var(--strukt-space-3) var(--strukt-space-6);
+  border: 1px solid var(--strukt-color-accent-primary);
+  border-radius: var(--strukt-radius-none);
+  background: var(--strukt-color-accent-primary);
+  color: var(--strukt-color-surface);
+  font-size: var(--strukt-font-label-size);
+  font-weight: var(--strukt-font-label-weight);
+  letter-spacing: var(--strukt-font-label-tracking);
+  text-transform: uppercase;
+  text-decoration: none;
+}
+
+.landing-cta:hover {
+  background: transparent;
+  color: var(--strukt-color-accent-primary);
+}
+
+.landing-meta {
+  margin: var(--strukt-space-3) 0 0;
+  font-family: var(--strukt-font-numeral);
+  font-size: var(--strukt-font-numeral-sm-size);
+  color: var(--strukt-color-ink-secondary);
+}
+
+.landing-figure {
+  flex: 1 1 360px;
+  max-width: 460px;
+  width: 100%;
+  height: auto;
+}
+
+.landing-figure line,
+.landing-figure path,
+.landing-figure circle {
+  vector-effect: non-scaling-stroke;
+}
+
+.figure-load {
+  stroke: var(--strukt-color-accent-primary);
+  fill: var(--strukt-color-accent-primary);
+  stroke-width: 1.25;
+}
+
+.figure-beam {
+  stroke: var(--strukt-color-ink-primary);
+  stroke-width: 2.5;
+}
+
+.figure-support {
+  stroke: var(--strukt-color-ink-primary);
+  stroke-width: 1.5;
+  fill: none;
+}
+
+.figure-node {
+  fill: var(--strukt-color-ink-primary);
+  stroke: none;
+}
+
+.figure-axis {
+  stroke: var(--strukt-color-border-hairline);
+  stroke-width: 1;
+}
+
+.figure-curve {
+  stroke: var(--strukt-color-accent-primary);
+  stroke-width: 2;
+}
+
+.figure-label {
+  fill: var(--strukt-color-accent-primary);
+  font-family: var(--strukt-font-numeral);
+  font-size: 11px;
+}
+
+.landing-points {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--strukt-space-4);
+  max-width: 1080px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 0 var(--strukt-space-5) var(--strukt-space-6);
+}
+
+.landing-points article {
+  flex: 1 1 260px;
+  padding: var(--strukt-space-4);
+  border: 1px solid var(--strukt-color-border-hairline);
+  border-radius: var(--strukt-radius-none);
+  background: var(--strukt-color-surface);
+}
+
+.landing-step {
+  margin: 0 0 var(--strukt-space-2);
+  font-family: var(--strukt-font-numeral);
+  font-size: var(--strukt-font-numeral-sm-size);
+  color: var(--strukt-color-accent-primary);
+}
+
+.landing-points h2 {
+  margin: 0 0 var(--strukt-space-2);
+  font-size: var(--strukt-font-label-size);
+  font-weight: var(--strukt-font-label-weight);
+  letter-spacing: var(--strukt-font-label-tracking);
+  text-transform: uppercase;
+  color: var(--strukt-color-ink-primary);
+}
+
+.landing-points p:last-child {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: var(--strukt-color-ink-secondary);
+}
+
+.landing-closing {
+  max-width: 1080px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 0 var(--strukt-space-5) var(--strukt-space-6);
+}
+
+.landing-closing p {
+  max-width: 46ch;
+  margin: 0 0 var(--strukt-space-4);
+  font-size: 1.05rem;
+  line-height: 1.6;
+  color: var(--strukt-color-ink-primary);
+}
+
+/* NFR-5: the learning-tool claim is stated persistently in-product, as a
+   footer-docked badge -- never a modal or a toast, and never dismissible. */
+.landing-footer,
+.app-footer {
+  margin-top: auto;
+  padding: var(--strukt-space-3) var(--strukt-space-5);
+  border-top: 1px solid var(--strukt-color-border-hairline);
+}
+
+.disclaimer-badge {
+  display: inline-block;
+  margin: 0;
+  padding: var(--strukt-space-1) var(--strukt-space-3);
+  border: 1px solid var(--strukt-color-border-hairline);
+  border-radius: var(--strukt-radius-none);
+  background: transparent;
+  /* Sans, not monospace: a full sentence with no numerals in it. */
+  font-size: var(--strukt-font-body-size);
+  color: var(--strukt-color-ink-secondary);
+}

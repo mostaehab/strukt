@@ -1,184 +1,129 @@
-"use client";
+import Link from "next/link";
 
-import { useCallback, useEffect, useState } from "react";
-import Toolbar, { type Tool } from "@/components/panels/Toolbar";
-import PropertiesPanel, {
-  type StructurePreset,
-} from "@/components/panels/PropertiesPanel";
-import CanvasWorkspace from "@/components/canvas/CanvasWorkspace";
-import SolveBar from "@/components/panels/SolveBar";
-import ResultsArea from "@/components/panels/ResultsArea";
-import useStructureStore from "@/store/useStructureStore";
-import {
-  loadsRemovedWithElement,
-  loadsRemovedWithNode,
-} from "@/engine/load";
+export const metadata = {
+  title: "strukt — see the working, not just the answer",
+  description:
+    "A structural analysis tool for civil engineering students learning the direct stiffness method. Draw a beam, frame or truss, solve it, and see the equations behind the result.",
+};
 
 /**
- * What a Node delete is about to take with it. Named in full rather than
- * hedged: a confirmation that undersells the cascade is worse than none.
+ * Landing page.
+ *
+ * Drawn in the app's own visual language rather than in generic marketing
+ * shapes: hairline strokes, zero corner-radius, one accent colour, monospace
+ * for anything numeric. The hero illustration is a simply supported beam with
+ * its own moment diagram — the thing the product actually does, rather than a
+ * stock image of a building.
  */
-function nodeDeleteMessage(hasElements: boolean, hasLoads: boolean): string {
-  if (hasElements && hasLoads) {
-    return "Delete this Node, its connected Elements, and their Loads?";
-  }
-  if (hasElements) return "Delete this Node and its connected Elements?";
-  if (hasLoads) return "Delete this Node and its Loads?";
-  return "Delete this Node?";
-}
 
-export default function Home() {
-  const [tool, setTool] = useState<Tool>("NODE");
-  const [preset, setPreset] = useState<StructurePreset>("FRAME");
-  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
-  const [selectedElementId, setSelectedElementId] = useState<string | null>(
-    null,
-  );
+/** Verbatim, and required on every surface (NFR-5, UX-DR8). */
+const DISCLAIMER =
+  "strukt is a learning tool — not a substitute for licensed/certified professional engineering judgment";
 
-  const elements = useStructureStore((s) => s.elements);
-  // A primitive selector, not the whole `nodes` array: dragging a Node changes
-  // that array on every pointer move, and the shell only cares whether the
-  // selected id still exists.
-  const selectedNodeMissing = useStructureStore(
-    (s) =>
-      selectedNodeId !== null &&
-      !s.nodes.some((node) => node.id === selectedNodeId),
-  );
-  const loads = useStructureStore((s) => s.loads);
-  const deleteNode = useStructureStore((s) => s.deleteNode);
-  const deleteElement = useStructureStore((s) => s.deleteElement);
+const POINTS = [
+  {
+    title: "Draw it",
+    body: "Place Nodes on a snap-to-grid canvas and connect them. Assign Supports, Materials and Cross-Sections from a real AISC catalogue, then apply point loads or UDLs.",
+  },
+  {
+    title: "Solve it",
+    body: "The Direct Stiffness Method runs in your browser, instantly. Bending moment, shear force and normal force diagrams appear with their peaks labelled — plus the reactions at every support.",
+  },
+  {
+    title: "See the working",
+    body: "Every other tool hands you a number. Show Steps opens the actual matrices: each member's local stiffness with your values substituted in, how they assemble, and the reduced system that produced the answer.",
+  },
+];
 
-  // Node and Element selection are mutually exclusive -- the properties panel
-  // shows exactly one entity at a time.
-  const handleSelectNode = useCallback((id: string | null) => {
-    setSelectedNodeId(id);
-    if (id !== null) setSelectedElementId(null);
-  }, []);
-
-  const handleSelectElement = useCallback((id: string | null) => {
-    setSelectedElementId(id);
-    if (id !== null) setSelectedNodeId(null);
-  }, []);
-
-  // Any delete path (the cascade in deleteNode, a future clear/undo/load) can
-  // leave a selection pointing at an id that no longer exists. Both are
-  // reconciled during render (React's "adjusting state when props change"
-  // pattern, as in CanvasWorkspace) so the panel never paints a frame
-  // referencing a dead entity, and so a dangling selectedNodeId can't shadow
-  // the Delete key from a selected Element below.
-  if (selectedNodeMissing) {
-    setSelectedNodeId(null);
-  }
-  if (selectedElementId && !elements.some((el) => el.id === selectedElementId)) {
-    setSelectedElementId(null);
-  }
-
-  const handleDeleteSelectedNode = useCallback(() => {
-    if (!selectedNodeId) return;
-    const hasElements = elements.some(
-      (el) => el.startNode === selectedNodeId || el.endNode === selectedNodeId,
-    );
-    // The cascade takes Loads on the Node *and* the UDLs on every Element it
-    // removes, so the confirmation has to name them -- deleting a Node should
-    // never silently take work the user cannot see listed.
-    const hasLoads =
-      loadsRemovedWithNode(loads, elements, selectedNodeId).length > 0;
-    const confirmed = window.confirm(
-      nodeDeleteMessage(hasElements, hasLoads),
-    );
-    if (!confirmed) return;
-    deleteNode(selectedNodeId);
-    setSelectedNodeId(null);
-    // No need to clear the Element selection here: selection is mutually
-    // exclusive, so a selected Node means no Element is selected. An Element
-    // the cascade removes by any other route is handled by the render-phase
-    // reconcile above.
-  }, [selectedNodeId, elements, loads, deleteNode]);
-
-  // No cascade here -- an Element owns no children. Confirmation still
-  // matches the Node delete pattern (FR-3) rather than deleting on one keypress.
-  const handleDeleteSelectedElement = useCallback(() => {
-    if (!selectedElementId) return;
-    const hasLoads =
-      loadsRemovedWithElement(loads, selectedElementId).length > 0;
-    const message = hasLoads
-      ? "Delete this Element and its Loads?"
-      : "Delete this Element?";
-    if (!window.confirm(message)) return;
-    deleteElement(selectedElementId);
-    setSelectedElementId(null);
-  }, [selectedElementId, loads, deleteElement]);
-
-  // Escape deselects both and collapses the panel; Delete/Backspace removes
-  // whichever entity is selected (with the same confirmation as the panel's
-  // Delete button).
-  useEffect(() => {
-    function handleKeyDown(event: KeyboardEvent) {
-      const target = event.target as HTMLElement | null;
-      // BUTTON included: the panel's delete controls are buttons, and
-      // Delete with one focused would otherwise fall through to "delete the
-      // whole Node" -- a destructive action two levels up from the control
-      // the user is actually on.
-      const inFormControl =
-        target !== null &&
-        ["INPUT", "TEXTAREA", "SELECT", "BUTTON"].includes(target.tagName);
-
-      // Escape is deliberately handled *before* the form-control guard: it is
-      // global ("Escape always closes the topmost panel"), so it must work
-      // while a numeric field has focus rather than doing one thing on the
-      // canvas and nothing in the panel. The control is blurred first so focus
-      // doesn't linger inside a panel that just collapsed -- which also lets
-      // the field commit a valid pending entry on its way out.
-      if (event.key === "Escape") {
-        if (inFormControl) target.blur();
-        setSelectedNodeId(null);
-        setSelectedElementId(null);
-        return;
-      }
-
-      // Delete/Backspace stays guarded -- they're editing keys inside the
-      // Element panel's numeric inputs.
-      if (inFormControl) return;
-      if (event.key !== "Delete" && event.key !== "Backspace") return;
-      if (selectedNodeId) {
-        handleDeleteSelectedNode();
-        return;
-      }
-      if (selectedElementId) {
-        handleDeleteSelectedElement();
-      }
-    }
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [
-    selectedNodeId,
-    selectedElementId,
-    handleDeleteSelectedNode,
-    handleDeleteSelectedElement,
-  ]);
-
+export default function Landing() {
   return (
-    <div className="app-shell">
-      <Toolbar tool={tool} onToolChange={setTool} />
-      <SolveBar />
-      <div className="workspace-body">
-        <CanvasWorkspace
-          tool={tool}
-          beamPreset={preset === "BEAM"}
-          selectedNodeId={selectedNodeId}
-          onSelectNode={handleSelectNode}
-          selectedElementId={selectedElementId}
-          onSelectElement={handleSelectElement}
-        />
-        <PropertiesPanel
-          preset={preset}
-          onPresetChange={setPreset}
-          selectedNodeId={selectedNodeId}
-          onDeleteSelectedNode={handleDeleteSelectedNode}
-          selectedElementId={selectedElementId}
-        />
-      </div>
-      <ResultsArea isBeamPreset={preset === "BEAM"} />
-    </div>
+    <main className="landing">
+      <section className="landing-hero">
+        <div className="landing-intro">
+          <p className="landing-eyebrow">Structural analysis, shown not told</p>
+          <h1 className="landing-title">strukt</h1>
+          <p className="landing-lede">
+            A 2D structural analysis tool for civil engineering students
+            learning the direct stiffness method. Draw a beam, frame or truss,
+            solve it, and check your hand calculations against every step.
+          </p>
+          <Link href="/canvas" className="landing-cta">
+            Open the canvas
+          </Link>
+          <p className="landing-meta">
+            No account needed · Runs entirely in your browser
+          </p>
+        </div>
+
+        {/* The product's own subject matter, drawn in its own language: a
+            simply supported beam under a uniform load, with the moment diagram
+            it produces. Decorative, so it is hidden from assistive tech — the
+            prose beside it already says what it shows. */}
+        <svg
+          className="landing-figure"
+          viewBox="0 0 420 220"
+          role="presentation"
+          focusable="false"
+        >
+          <g className="figure-load">
+            {[70, 110, 150, 190, 230, 270, 310, 350].map((x) => (
+              <line key={x} x1={x} y1="26" x2={x} y2="58" />
+            ))}
+            <line x1="62" y1="26" x2="358" y2="26" />
+            {[70, 110, 150, 190, 230, 270, 310, 350].map((x) => (
+              <path key={`h${x}`} d={`M${x - 4} 52 L${x} 62 L${x + 4} 52 Z`} />
+            ))}
+          </g>
+
+          <line className="figure-beam" x1="60" y1="70" x2="360" y2="70" />
+
+          <g className="figure-support">
+            <path d="M60 70 L48 92 L72 92 Z" />
+            <line x1="42" y1="92" x2="78" y2="92" />
+            <path d="M360 70 L348 92 L372 92 Z" />
+            <circle cx="354" cy="97" r="4" />
+            <circle cx="366" cy="97" r="4" />
+            <line x1="342" y1="103" x2="378" y2="103" />
+          </g>
+
+          <circle className="figure-node" cx="60" cy="70" r="4" />
+          <circle className="figure-node" cx="360" cy="70" r="4" />
+
+          <line className="figure-axis" x1="60" y1="140" x2="360" y2="140" />
+          <path
+            className="figure-curve"
+            d="M60 140 Q210 212 360 140"
+            fill="none"
+          />
+          <text className="figure-label" x="210" y="204" textAnchor="middle">
+            M·max = wL²/8
+          </text>
+        </svg>
+      </section>
+
+      <section className="landing-points">
+        {POINTS.map((point, index) => (
+          <article key={point.title}>
+            <p className="landing-step">{String(index + 1).padStart(2, "0")}</p>
+            <h2>{point.title}</h2>
+            <p>{point.body}</p>
+          </article>
+        ))}
+      </section>
+
+      <section className="landing-closing">
+        <p>
+          Built for the moment before an exam when you need to know whether your
+          own answer is right.
+        </p>
+        <Link href="/canvas" className="landing-cta">
+          Open the canvas
+        </Link>
+      </section>
+
+      <footer className="landing-footer">
+        <p className="disclaimer-badge">{DISCLAIMER}</p>
+      </footer>
+    </main>
   );
 }

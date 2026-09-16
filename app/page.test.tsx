@@ -1,343 +1,51 @@
 // @vitest-environment jsdom
 
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
-import useStructureStore from "@/store/useStructureStore";
-import { createElement } from "@/engine/element";
-import { AXIS_DIRECTIONS, createLoad, nodeTarget } from "@/engine/load";
-import { elementTarget } from "@/engine/load";
-import type { StructuralNode } from "@/engine/types";
+import { afterEach, describe, expect, it } from "vitest";
+import { cleanup, render, screen } from "@testing-library/react";
+import Landing from "./page";
 
-// The real CanvasWorkspace mounts an r3f <Canvas>, which needs WebGL that jsdom
-// does not provide. This stand-in exposes the same selection contract as
-// buttons, so the shell's selection/keyboard logic is what gets tested here --
-// not three.js rendering.
-vi.mock("@/components/canvas/CanvasWorkspace", () => ({
-  default: ({
-    selectedNodeId,
-    selectedElementId,
-    onSelectNode,
-    onSelectElement,
-  }: {
-    selectedNodeId: string | null;
-    selectedElementId: string | null;
-    onSelectNode: (id: string | null) => void;
-    onSelectElement: (id: string | null) => void;
-  }) => (
-    <div>
-      <button type="button" onClick={() => onSelectNode(NODE_ID)}>
-        stub-select-node
-      </button>
-      <button type="button" onClick={() => onSelectElement(ELEMENT_ID)}>
-        stub-select-element
-      </button>
-      <span data-testid="canvas-selected-node">{String(selectedNodeId)}</span>
-      <span data-testid="canvas-selected-element">
-        {String(selectedElementId)}
-      </span>
-    </div>
-  ),
-}));
+const DISCLAIMER =
+  "strukt is a learning tool — not a substitute for licensed/certified professional engineering judgment";
 
-const NODE_ID = "n1";
-const OTHER_NODE_ID = "n2";
-const ELEMENT_ID = "el-1";
+afterEach(cleanup);
 
-function makeNode(id: string, x: number): StructuralNode {
-  return { id, x, y: 0, support: "FREE" };
-}
-
-function seedStructure() {
-  const store = useStructureStore.getState();
-  store.addNode(makeNode(NODE_ID, 0));
-  store.addNode(makeNode(OTHER_NODE_ID, 1));
-  store.addElement(createElement(ELEMENT_ID, NODE_ID, OTHER_NODE_ID));
-}
-
-async function renderHome() {
-  const { default: Home } = await import("./page");
-  return render(<Home />);
-}
-
-function elementCount() {
-  return useStructureStore.getState().elements.length;
-}
-
-beforeEach(() => {
-  useStructureStore.getState().clearAll();
-  vi.spyOn(window, "confirm").mockReturnValue(true);
-});
-
-afterEach(() => {
-  cleanup();
-  vi.restoreAllMocks();
-});
-
-describe("Canvas Workspace selection shell", () => {
-  // Matrix row: Select an Element -- selected Node deselects, panel switches.
-  it("deselects the Node when an Element is selected", async () => {
-    seedStructure();
-    await renderHome();
-
-    fireEvent.click(screen.getByText("stub-select-node"));
-    expect(screen.getByTestId("canvas-selected-node").textContent).toBe(NODE_ID);
-    // Positional label, not the stored UUID: the first seeded Node is N1.
-    screen.getByText("Node N1");
-
-    fireEvent.click(screen.getByText("stub-select-element"));
-    expect(screen.getByTestId("canvas-selected-node").textContent).toBe("null");
-    expect(screen.getByTestId("canvas-selected-element").textContent).toBe(
-      ELEMENT_ID,
-    );
-    screen.getByText("Element E1 — Properties");
-    screen.getByText("Select a Node to view its properties.");
+describe("Landing page", () => {
+  it("names the product and what it is for", () => {
+    render(<Landing />);
+    screen.getByRole("heading", { level: 1, name: "strukt" });
+    expect(document.body.textContent).toContain("direct stiffness method");
   });
 
-  it("deselects the Element when a Node is selected", async () => {
-    seedStructure();
-    await renderHome();
-
-    fireEvent.click(screen.getByText("stub-select-element"));
-    fireEvent.click(screen.getByText("stub-select-node"));
-
-    expect(screen.getByTestId("canvas-selected-element").textContent).toBe(
-      "null",
-    );
-    screen.getByText("Select an Element to view its properties.");
+  it("routes to the canvas, which is no longer the entry point", () => {
+    render(<Landing />);
+    const links = screen.getAllByRole("link", { name: /open the canvas/i });
+    // Offered at the top and again at the end, so a reader never has to scroll
+    // back to act.
+    expect(links.length).toBeGreaterThanOrEqual(2);
+    for (const link of links) {
+      expect(link.getAttribute("href")).toBe("/canvas");
+    }
   });
 
-  it("clears both selections on Escape", async () => {
-    seedStructure();
-    await renderHome();
-
-    fireEvent.click(screen.getByText("stub-select-element"));
-    fireEvent.keyDown(window, { key: "Escape" });
-
-    expect(screen.getByTestId("canvas-selected-element").textContent).toBe(
-      "null",
-    );
-    expect(screen.getByTestId("canvas-selected-node").textContent).toBe("null");
+  it("states the learning-tool claim verbatim (NFR-5)", () => {
+    render(<Landing />);
+    // Persistent and in-product, never a modal or a toast.
+    screen.getByText(DISCLAIMER);
   });
 
-  // Escape is global: the form-control guard must not swallow it, or one key
-  // does two different things depending on where focus happens to be.
-  it("clears the selection on Escape from inside a numeric field", async () => {
-    seedStructure();
-    await renderHome();
-
-    fireEvent.click(screen.getByText("stub-select-element"));
-    const area = screen.getByLabelText("Area (m²)");
-    area.focus();
-    expect(document.activeElement).toBe(area);
-
-    fireEvent.keyDown(area, { key: "Escape" });
-
-    expect(screen.getByTestId("canvas-selected-element").textContent).toBe(
-      "null",
-    );
-    expect(screen.getByTestId("canvas-selected-node").textContent).toBe("null");
-    // Focus doesn't linger inside a panel section that just collapsed.
-    expect(document.activeElement).not.toBe(area);
+  it("leads with what the tool actually does, in order", () => {
+    render(<Landing />);
+    const headings = screen
+      .getAllByRole("heading", { level: 2 })
+      .map((h) => h.textContent);
+    expect(headings).toEqual(["Draw it", "Solve it", "See the working"]);
   });
 
-  // Matrix row: Delete selected Element -- removed, selection cleared, no cascade.
-  it("deletes the selected Element on Delete and clears the selection", async () => {
-    seedStructure();
-    await renderHome();
-
-    fireEvent.click(screen.getByText("stub-select-element"));
-    fireEvent.keyDown(window, { key: "Delete" });
-
-    expect(elementCount()).toBe(0);
-    expect(screen.getByTestId("canvas-selected-element").textContent).toBe(
-      "null",
-    );
-    // No cascade -- an Element owns no children, so both Nodes survive.
-    expect(useStructureStore.getState().nodes).toHaveLength(2);
-  });
-
-  it("leaves the Element in place when the delete confirmation is declined", async () => {
-    seedStructure();
-    vi.spyOn(window, "confirm").mockReturnValue(false);
-    await renderHome();
-
-    fireEvent.click(screen.getByText("stub-select-element"));
-    fireEvent.keyDown(window, { key: "Delete" });
-
-    expect(elementCount()).toBe(1);
-  });
-
-  it("ignores Delete while typing in a form control", async () => {
-    seedStructure();
-    await renderHome();
-
-    fireEvent.click(screen.getByText("stub-select-element"));
-    fireEvent.keyDown(screen.getByLabelText("Area (m²)"), { key: "Delete" });
-
-    expect(elementCount()).toBe(1);
-  });
-
-  // Matrix row: Cascade kills selection -- panel collapses rather than
-  // referencing a deleted Element.
-  it("clears an Element selection when a cascade delete removes it", async () => {
-    seedStructure();
-    await renderHome();
-
-    fireEvent.click(screen.getByText("stub-select-element"));
-    screen.getByText("Element E1 — Properties");
-
-    act(() => {
-      useStructureStore.getState().deleteNode(NODE_ID);
-    });
-
-    expect(elementCount()).toBe(0);
-    expect(screen.getByTestId("canvas-selected-element").textContent).toBe(
-      "null",
-    );
-    screen.getByText("Select an Element to view its properties.");
-  });
-
-  // P6: a selectedNodeId left pointing at a deleted Node used to swallow every
-  // Delete keypress, so a selected Element could never be deleted.
-  it("still deletes a selected Element after its Node selection went stale", async () => {
-    seedStructure();
-    await renderHome();
-
-    fireEvent.click(screen.getByText("stub-select-node"));
-    act(() => {
-      // Node removed without going through the shell's delete handler.
-      useStructureStore.setState({
-        nodes: useStructureStore
-          .getState()
-          .nodes.filter((n) => n.id !== NODE_ID),
-      });
-    });
-    expect(screen.getByTestId("canvas-selected-node").textContent).toBe("null");
-
-    fireEvent.click(screen.getByText("stub-select-element"));
-    fireEvent.keyDown(window, { key: "Delete" });
-    expect(elementCount()).toBe(0);
-  });
-});
-
-describe("Load interactions in the shell", () => {
-  function loads() {
-    return useStructureStore.getState().loads;
-  }
-
-  function magnitudeInput() {
-    return screen.getByLabelText("Magnitude (kN)") as HTMLInputElement;
-  }
-
-  function applyNodeLoad() {
-    useStructureStore
-      .getState()
-      .addLoad(
-        createLoad(
-          "load-1",
-          "concentrated",
-          nodeTarget(NODE_ID),
-          5000,
-          AXIS_DIRECTIONS["-y"],
-        ),
-      );
-  }
-
-  // The shell blurs the focused control before collapsing the panel. A blur
-  // used to apply the Load, so Escape mid-entry applied the very Load it was
-  // cancelling -- then hid the panel that would have shown it.
-  it("discards a half-typed Load magnitude on Escape", async () => {
-    seedStructure();
-    await renderHome();
-    fireEvent.click(screen.getByText("stub-select-node"));
-
-    const input = magnitudeInput();
-    input.focus();
-    fireEvent.change(input, { target: { value: "5" } });
-    fireEvent.keyDown(input, { key: "Escape" });
-
-    expect(loads()).toEqual([]);
-    expect(screen.getByTestId("canvas-selected-node").textContent).toBe("null");
-  });
-
-  // With a Load's delete control focused, Delete used to fall through to the
-  // global handler and offer to delete the whole Node.
-  it("ignores Delete while a panel button has focus", async () => {
-    seedStructure();
-    applyNodeLoad();
-    await renderHome();
-    fireEvent.click(screen.getByText("stub-select-node"));
-
-    const deleteLoad = screen.getByLabelText("Delete Load 1 on Node N1");
-    deleteLoad.focus();
-    fireEvent.keyDown(deleteLoad, { key: "Delete" });
-
-    expect(useStructureStore.getState().nodes).toHaveLength(2);
-    expect(loads()).toHaveLength(1);
-  });
-
-  it("names the Loads a Node delete is about to take with it", async () => {
-    seedStructure();
-    applyNodeLoad();
-    useStructureStore
-      .getState()
-      .addLoad(
-        createLoad(
-          "load-2",
-          "udl",
-          elementTarget(ELEMENT_ID),
-          2000,
-          AXIS_DIRECTIONS["-y"],
-        ),
-      );
-    await renderHome();
-
-    fireEvent.click(screen.getByText("stub-select-node"));
-    fireEvent.keyDown(window, { key: "Delete" });
-
-    expect(window.confirm).toHaveBeenCalledWith(
-      "Delete this Node, its connected Elements, and their Loads?",
-    );
-    // Two-level cascade: the Node, its Element, and both their Loads.
-    expect(loads()).toEqual([]);
-    expect(useStructureStore.getState().elements).toEqual([]);
-  });
-
-  it("still names only the Elements when no Load is affected", async () => {
-    seedStructure();
-    await renderHome();
-
-    fireEvent.click(screen.getByText("stub-select-node"));
-    fireEvent.keyDown(window, { key: "Delete" });
-
-    expect(window.confirm).toHaveBeenCalledWith(
-      "Delete this Node and its connected Elements?",
-    );
-  });
-
-  it("names the Loads an Element delete takes with it", async () => {
-    seedStructure();
-    useStructureStore
-      .getState()
-      .addLoad(
-        createLoad(
-          "load-2",
-          "udl",
-          elementTarget(ELEMENT_ID),
-          2000,
-          AXIS_DIRECTIONS["-y"],
-        ),
-      );
-    await renderHome();
-
-    fireEvent.click(screen.getByText("stub-select-element"));
-    fireEvent.keyDown(window, { key: "Delete" });
-
-    expect(window.confirm).toHaveBeenCalledWith(
-      "Delete this Element and its Loads?",
-    );
-    expect(loads()).toEqual([]);
-    // Loads on its end Nodes would have survived; it had none.
-    expect(useStructureStore.getState().nodes).toHaveLength(2);
+  it("hides the decorative figure from assistive tech", () => {
+    const { container } = render(<Landing />);
+    const svg = container.querySelector("svg");
+    // The prose beside it already says what it shows, so announcing it twice
+    // would be noise.
+    expect(svg?.getAttribute("role")).toBe("presentation");
   });
 });

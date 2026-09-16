@@ -341,6 +341,7 @@ export function solve(payload: EnginePayload): SolveOutcome {
   // FR-19 displays.
   const restrained = new Array<boolean>(size).fill(false);
   const freeDofLabels: string[] = [];
+  const restrainedDofLabels: string[] = [];
   const freeDofs: number[] = [];
   const axisNames = ["ux", "uy", "theta"] as const;
 
@@ -354,12 +355,16 @@ export function solve(payload: EnginePayload): SolveOutcome {
     ];
     for (let axis = 0; axis < perNode; axis += 1) {
       const dof = dofs[axis];
+      // Both lists come from this one expression, so a free DOF and an
+      // eliminated one can never be named by different conventions.
+      const label = `${nodeLabel(node.id)}:${axisNames[axis]}`;
       if (fixed[axis]) {
         restrained[dof] = true;
+        restrainedDofLabels.push(label);
         continue;
       }
       freeDofs.push(dof);
-      freeDofLabels.push(`${nodeLabel(node.id)}:${axisNames[axis]}`);
+      freeDofLabels.push(label);
     }
   }
 
@@ -500,7 +505,12 @@ export function solve(payload: EnginePayload): SolveOutcome {
       elementForces,
       localStiffness,
       dofMap,
-      reducedSystem: { K: reducedK, F: reducedF, freeDofs: freeDofLabels },
+      reducedSystem: {
+        K: reducedK,
+        F: reducedF,
+        freeDofs: freeDofLabels,
+        restrainedDofs: restrainedDofLabels,
+      },
     },
   };
 }

@@ -202,6 +202,14 @@ export interface SolveResult {
     K: number[][];
     F: number[];
     freeDofs: string[];
+    /**
+     * The DOFs the Supports eliminated, which is what FR-19 displays. Carried
+     * rather than derived: labelling them in the consumer would mean a second
+     * copy of the `N1:ux` convention, and the two could silently disagree --
+     * the same drift AD-3 names when it forbids re-deriving `freeDofs` from
+     * Supports at render time.
+     */
+    restrainedDofs: string[];
   };
 }
 

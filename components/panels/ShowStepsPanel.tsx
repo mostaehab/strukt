@@ -6,6 +6,7 @@ import katex from "katex";
 import useStructureStore from "@/store/useStructureStore";
 import useUnitStore from "@/store/useUnitStore";
 import StiffnessMatrix from "./StiffnessMatrix";
+import ReducedSystem from "./ReducedSystem";
 import { elementLabel } from "@/utils/labels";
 import {
   areaToDisplay,
@@ -159,6 +160,8 @@ export default function ShowStepsPanel({
           </article>
         );
       })}
+
+      <ReducedSystem results={results} />
     </section>
   );
 }

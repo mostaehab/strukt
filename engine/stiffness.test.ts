@@ -238,6 +238,46 @@ describe("solve: the AD-3 contract", () => {
     ]);
   });
 
+  it("names the DOFs the Supports eliminated", () => {
+    const outcome = solve(cantilever());
+    if (!outcome.ok) throw new Error("expected a solvable structure");
+    // The fixed base contributes all three; FR-19 displays them by name.
+    expect(outcome.result.reducedSystem.restrainedDofs).toEqual([
+      "N1:ux",
+      "N1:uy",
+      "N1:theta",
+    ]);
+  });
+
+  it("splits every DOF into exactly one of free or restrained", () => {
+    const outcome = solve(cantilever());
+    if (!outcome.ok) throw new Error("expected a solvable structure");
+    const { freeDofs, restrainedDofs } = outcome.result.reducedSystem;
+    // Complementary and disjoint: both come from one labelling expression, so
+    // a DOF can never be missing from both or claimed by both.
+    const all = [...freeDofs, ...restrainedDofs];
+    expect(new Set(all).size).toBe(all.length);
+    expect(all).toHaveLength(Object.keys(outcome.result.dofMap).length * 3);
+  });
+
+  it("reports no restrained DOFs for a structure held only by Rollers", () => {
+    // A Roller fixes uy alone, so ux and theta stay free at every Node.
+    const outcome = solve(
+      payload(
+        "FRAME",
+        [node("a", 0, 0, "HINGE"), node("b", 4, 0, "ROLLER")],
+        [member("ab", "a", "b")],
+        [pointLoad("b", 1_000, [0, -1])],
+      ),
+    );
+    if (!outcome.ok) throw new Error("expected a solvable structure");
+    expect(outcome.result.reducedSystem.restrainedDofs).toEqual([
+      "N1:ux",
+      "N1:uy",
+      "N2:uy",
+    ]);
+  });
+
   it("sizes the reduced system to the free DOFs alone", () => {
     const outcome = solve(cantilever());
     if (!outcome.ok) throw new Error("expected a solvable structure");

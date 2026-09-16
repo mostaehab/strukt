@@ -272,6 +272,43 @@ describe("Show Steps (FR-16, FR-17)", () => {
     expect(container.querySelectorAll(".katex").length).toBeGreaterThanOrEqual(3);
   });
 
+  it("names the DOFs the Supports eliminated (FR-19)", () => {
+    seedSolvedBeam();
+    render(<ResultsArea isBeamPreset={false} />);
+    fireEvent.click(stepsSwitch());
+    const panel = screen.getByLabelText("Show Steps");
+    // Hinge at N1 removes ux and uy; Roller at N3 removes uy.
+    expect(panel.textContent).toContain("N1:ux");
+    expect(panel.textContent).toContain("N3:uy");
+    expect(panel.textContent).toContain("Eliminated by Supports");
+  });
+
+  it("shows the reduced system it actually solved", () => {
+    seedSolvedBeam();
+    render(<ResultsArea isBeamPreset={false} />);
+    fireEvent.click(stepsSwitch());
+    screen.getByRole("img", { name: "Reduced stiffness matrix" });
+    screen.getByRole("img", { name: "Reduced load vector" });
+  });
+
+  it("lists every displacement, marking which came from a Support", () => {
+    seedSolvedBeam();
+    render(<ResultsArea isBeamPreset={false} />);
+    fireEvent.click(stepsSwitch());
+    const panel = screen.getByLabelText("Show Steps");
+    // Free DOFs are solved; restrained ones are zero by definition.
+    expect(panel.textContent).toContain("Support (zero)");
+    expect(panel.textContent).toContain("solved");
+    expect(panel.textContent).toContain("rad");
+  });
+
+  it("omits the rotational row for a Truss, which has no such freedom", () => {
+    seedSolvedTruss();
+    render(<ResultsArea isBeamPreset={false} />);
+    fireEvent.click(stepsSwitch());
+    expect(screen.getByLabelText("Show Steps").textContent).not.toContain("rad");
+  });
+
   it("never captions a non-Beam Project", () => {
     seedSolvedBeam();
     render(<ResultsArea isBeamPreset={false} />);

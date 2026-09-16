@@ -178,7 +178,7 @@ export default function Home() {
           selectedElementId={selectedElementId}
         />
       </div>
-      <ResultsArea />
+      <ResultsArea isBeamPreset={preset === "BEAM"} />
     </div>
   );
 }

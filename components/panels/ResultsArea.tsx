@@ -3,6 +3,8 @@
 import { useMemo } from "react";
 import useStructureStore from "@/store/useStructureStore";
 import DiagramCard from "./DiagramCard";
+import StepsToggle from "./StepsToggle";
+import ShowStepsPanel from "./ShowStepsPanel";
 import { structureDiagrams, type DiagramPeak } from "@/engine/diagrams";
 import { elementLabel, nodeLabel } from "@/utils/labels";
 import {
@@ -38,13 +40,20 @@ function peakLabel(
   return `${format(peak.value)} at ${distance(peak.at)} along ${elementName(peak.elementId)}`;
 }
 
-export default function ResultsArea() {
+interface ResultsAreaProps {
+  /** Beam is stored as FRAME, so only the shell knows a Project was drawn as one. */
+  isBeamPreset: boolean;
+}
+
+export default function ResultsArea({ isBeamPreset }: ResultsAreaProps) {
   const results = useStructureStore((s) => s.results);
   const nodes = useStructureStore((s) => s.nodes);
   const elements = useStructureStore((s) => s.elements);
   const loads = useStructureStore((s) => s.loads);
   const structureType = useStructureStore((s) => s.type);
   const unitSystem = useUnitStore((s) => s.system);
+  const showSteps = useStructureStore((s) => s.showSteps);
+  const setShowSteps = useStructureStore((s) => s.setShowSteps);
 
   const diagrams = useMemo(
     () =>
@@ -63,6 +72,11 @@ export default function ResultsArea() {
   if (!results || !diagrams) {
     return (
       <section className="results-area" aria-label="Results">
+        <header className="results-head">
+          <h3>Results</h3>
+          {/* Present but inert before a Solve: "disabled (not merely empty)". */}
+          <StepsToggle checked={false} disabled onChange={() => {}} />
+        </header>
         <p className="empty-note">{EMPTY_NOTE}</p>
       </section>
     );
@@ -101,6 +115,11 @@ export default function ResultsArea() {
       <header className="results-head">
         <h3>Results</h3>
         <span className="tag-outline tag-solved">Solved ✓</span>
+        <StepsToggle
+          checked={showSteps}
+          disabled={false}
+          onChange={setShowSteps}
+        />
       </header>
 
       <div className="diagrams">
@@ -162,6 +181,12 @@ export default function ResultsArea() {
           </table>
         </section>
       </div>
+
+      {/* The one deliberate second-order gate (UX-DR9): results render
+          unprompted, this does not. */}
+      {showSteps && (
+        <ShowStepsPanel results={results} isBeamPreset={isBeamPreset} />
+      )}
     </section>
   );
 }

@@ -569,3 +569,125 @@ body {
   border-bottom-color: var(--strukt-color-accent-primary);
   color: var(--strukt-color-ink-primary);
 }
+
+/* Show Steps switch. Hairline-bordered, thumb shifting ink-secondary (off) to
+   accent-primary (on) -- components.steps-toggle-switch. */
+.steps-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--strukt-space-2);
+  margin-left: auto;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+}
+
+.steps-toggle:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.steps-toggle-label {
+  font-size: var(--strukt-font-label-size);
+  font-weight: var(--strukt-font-label-weight);
+  letter-spacing: var(--strukt-font-label-tracking);
+  text-transform: uppercase;
+  color: var(--strukt-color-ink-secondary);
+}
+
+.steps-switch {
+  display: inline-flex;
+  align-items: center;
+  width: 34px;
+  height: 18px;
+  padding: 2px;
+  border: 1px solid var(--strukt-color-border-hairline);
+  border-radius: var(--strukt-radius-none);
+  background: var(--strukt-color-surface);
+}
+
+.steps-thumb {
+  width: 12px;
+  height: 12px;
+  background: var(--strukt-color-ink-secondary);
+  transition: transform 120ms ease, background-color 120ms ease;
+}
+
+.steps-toggle.is-on .steps-thumb {
+  transform: translateX(16px);
+  background: var(--strukt-color-accent-primary);
+}
+
+.steps-toggle.is-on .steps-toggle-label {
+  color: var(--strukt-color-ink-primary);
+}
+
+/* Motion is decoration here; the state is carried by position and colour. */
+@media (prefers-reduced-motion: reduce) {
+  .steps-thumb {
+    transition: none;
+  }
+}
+
+.show-steps {
+  margin-top: var(--strukt-space-4);
+  padding-top: var(--strukt-space-3);
+  border-top: 1px solid var(--strukt-color-border-hairline);
+}
+
+.show-steps h4 {
+  margin: 0 0 var(--strukt-space-1);
+  font-size: var(--strukt-font-label-size);
+  font-weight: var(--strukt-font-label-weight);
+  letter-spacing: var(--strukt-font-label-tracking);
+  text-transform: uppercase;
+  color: var(--strukt-color-ink-secondary);
+}
+
+.steps-caption,
+.steps-note {
+  margin: 0 0 var(--strukt-space-2);
+  font-size: var(--strukt-font-body-size);
+  color: var(--strukt-color-ink-secondary);
+}
+
+.steps-element {
+  margin-top: var(--strukt-space-4);
+  padding-top: var(--strukt-space-3);
+  border-top: 1px solid var(--strukt-color-border-hairline);
+}
+
+.steps-element h5 {
+  margin: 0 0 var(--strukt-space-2);
+  font-size: var(--strukt-font-label-size);
+  font-weight: var(--strukt-font-label-weight);
+  letter-spacing: var(--strukt-font-label-tracking);
+  text-transform: uppercase;
+  color: var(--strukt-color-ink-primary);
+}
+
+.steps-values {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--strukt-space-1) var(--strukt-space-4);
+  margin: 0 0 var(--strukt-space-2);
+  font-family: var(--strukt-font-numeral);
+  font-size: var(--strukt-font-numeral-sm-size);
+}
+
+.steps-values dt {
+  color: var(--strukt-color-ink-secondary);
+}
+
+.steps-values dd {
+  margin: 0 var(--strukt-space-3) 0 0;
+  color: var(--strukt-color-ink-primary);
+}
+
+/* Matrices are wide; scroll them rather than letting the page scroll. */
+.steps-formula,
+.stiffness-matrix {
+  overflow-x: auto;
+  color: var(--strukt-color-ink-primary);
+}

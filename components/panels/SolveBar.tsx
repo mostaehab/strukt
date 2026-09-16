@@ -18,8 +18,23 @@ import useStructureStore from "@/store/useStructureStore";
 export default function SolveBar() {
   const solve = useStructureStore((s) => s.solve);
   const solveErrors = useStructureStore((s) => s.solveErrors);
+  const clearAll = useStructureStore((s) => s.clearAll);
+  const isEmpty = useStructureStore(
+    (s) => s.nodes.length === 0 && s.elements.length === 0,
+  );
 
   const blocked = solveErrors.length > 0;
+
+  // Clearing throws away every Node, Element and Load at once and there is no
+  // undo, so it confirms first and names what it takes -- the same rule the
+  // Node and Element deletes follow (FR-3).
+  const handleClear = () => {
+    if (isEmpty) return;
+    if (!window.confirm("Clear the workspace? This deletes every Node, Element and Load, and can't be undone.")) {
+      return;
+    }
+    clearAll();
+  };
 
   return (
     <div className="solve-bar">
@@ -29,6 +44,19 @@ export default function SolveBar() {
         onClick={solve}
       >
         {blocked ? "Solve — blocked" : "Solve"}
+      </button>
+
+      {/* Destructive, so it sits apart from Solve and reads as an outline
+          rather than a filled button -- DESIGN.md's button-danger-outline.
+          Disabled only when there is genuinely nothing to clear, which is a
+          statement of fact rather than a hidden precondition. */}
+      <button
+        type="button"
+        className="clear-button"
+        onClick={handleClear}
+        disabled={isEmpty}
+      >
+        Clear workspace
       </button>
 
       {/* The solved state is reported once, in the results head, where the

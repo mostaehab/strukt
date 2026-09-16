@@ -42,3 +42,11 @@ export const LOAD_GLYPH_Z = 0.25;
  * as one glyph, large enough that the two never z-fight.
  */
 export const LOAD_HALO_Z_OFFSET = 0.01;
+
+/**
+ * z of a Support glyph. Below the Node it belongs to, so the Node circle stays
+ * readable on top of it, and above the Element pick proxy so a Support drawn
+ * under a joint never hides the member. Carries no pointer handlers, so it
+ * takes no taps from either.
+ */
+export const SUPPORT_GLYPH_Z = 0.15;

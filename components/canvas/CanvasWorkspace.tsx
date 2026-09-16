@@ -13,6 +13,7 @@ import type { Tool } from "@/components/panels/Toolbar";
 import NodeGlyph from "./NodeGlyph";
 import ElementLine from "./ElementLine";
 import LoadGlyph from "./LoadGlyph";
+import SupportGlyph from "./SupportGlyph";
 import { NODE_GLYPH_Z, PIXELS_PER_WORLD_UNIT } from "./canvasConstants";
 
 const GRID_SIZE = 1;
@@ -304,6 +305,19 @@ export default function CanvasWorkspace({
             />
           );
         })}
+
+        {/* Supports are drawn under their Node, so an assigned restraint is
+            visible on the canvas rather than only in the properties panel --
+            a student reads a structure by its supports. FREE draws nothing. */}
+        {nodes.map((node) => (
+          <SupportGlyph
+            key={`support-${node.id}`}
+            support={node.support}
+            x={node.x}
+            y={node.y}
+            color={COLORS.ink}
+          />
+        ))}
 
         {nodes.map((node) => (
           <NodeGlyph

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import SolveBar from "./SolveBar";
 import useStructureStore from "@/store/useStructureStore";
@@ -46,8 +46,16 @@ function solveButton() {
   return screen.getByRole("button", { name: /solve/i });
 }
 
-beforeEach(() => useStructureStore.getState().clearAll());
-afterEach(cleanup);
+beforeEach(() => {
+  useStructureStore.getState().clearAll();
+  // jsdom leaves confirm unimplemented, and clearing the workspace asks first.
+  vi.spyOn(window, "confirm").mockReturnValue(true);
+});
+
+afterEach(() => {
+  cleanup();
+  vi.restoreAllMocks();
+});
 
 describe("SolveBar", () => {
   it("offers a plain Solve button before any attempt", () => {
@@ -165,5 +173,56 @@ describe("SolveBar", () => {
     // A real <button> activates on Enter and Space without extra handlers,
     // which is why this is a button and not a styled div.
     expect(button.tagName).toBe("BUTTON");
+  });
+});
+
+describe("SolveBar clear workspace", () => {
+  function clearButton() {
+    return screen.getByRole("button", { name: /clear workspace/i });
+  }
+
+  it("is disabled on an empty workspace, since there is nothing to clear", () => {
+    render(<SolveBar />);
+    expect(clearButton().hasAttribute("disabled")).toBe(true);
+  });
+
+  it("enables once there is something to lose", () => {
+    seedSolvableBeam();
+    render(<SolveBar />);
+    expect(clearButton().hasAttribute("disabled")).toBe(false);
+  });
+
+  it("confirms before clearing, naming what it takes", () => {
+    seedSolvableBeam();
+    render(<SolveBar />);
+    fireEvent.click(clearButton());
+
+    const asked = vi.mocked(window.confirm).mock.calls[0][0] as string;
+    expect(asked).toContain("Node");
+    expect(asked).toContain("Element");
+    expect(asked).toContain("Load");
+    expect(asked).toContain("can't be undone");
+  });
+
+  it("empties the whole structure when confirmed", () => {
+    seedSolvableBeam();
+    render(<SolveBar />);
+    fireEvent.click(clearButton());
+
+    const state = useStructureStore.getState();
+    expect(state.nodes).toEqual([]);
+    expect(state.elements).toEqual([]);
+    expect(state.loads).toEqual([]);
+    expect(state.results).toBeNull();
+  });
+
+  it("leaves everything alone when the confirmation is declined", () => {
+    seedSolvableBeam();
+    vi.spyOn(window, "confirm").mockReturnValue(false);
+    render(<SolveBar />);
+    fireEvent.click(clearButton());
+
+    expect(useStructureStore.getState().nodes).toHaveLength(2);
+    expect(useStructureStore.getState().elements).toHaveLength(1);
   });
 });

@@ -1,0 +1,405 @@
+/*
+ * Landing page styles.
+ *
+ * Kept out of globals.css because none of it is app chrome: the workspace
+ * never loads a hero or a nav. The shared pieces the workspace does use --
+ * .app-footer and .disclaimer-badge -- stay in globals.css.
+ *
+ * Modern technical-SaaS layout (generous rhythm, sticky nav, a gradient-lit
+ * hero, hover-lifting cards) built on the app's own sharp geometry. Zero
+ * corner-radius is the brand's most distinctive quality, inherited from
+ * drafting, so it is kept rather than softened -- arriving at the canvas
+ * should feel like the same product, not a different one.
+ */
+
+.landing {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--strukt-color-background);
+}
+
+.landing-nav {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--strukt-space-4);
+  padding: var(--strukt-space-3) var(--strukt-space-5);
+  border-bottom: 1px solid var(--strukt-color-border-hairline);
+  /* Translucent, so the hero's grid scrolls under it rather than meeting a
+     hard band. */
+  background: color-mix(in srgb, var(--strukt-color-background) 88%, transparent);
+  backdrop-filter: blur(8px);
+}
+
+.landing-mark {
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--strukt-color-ink-primary);
+}
+
+.landing-hero {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--strukt-space-6);
+  max-width: 1120px;
+  width: 100%;
+  margin: 0 auto;
+  padding: clamp(2.5rem, 7vw, 5.5rem) var(--strukt-space-5);
+  /* The canvas's own graph paper, faint, with an accent glow behind the
+     headline -- the one soft thing on the page. */
+  background-image:
+    radial-gradient(
+      circle at 18% 22%,
+      color-mix(in srgb, var(--strukt-color-accent-primary) 16%, transparent),
+      transparent 55%
+    ),
+    radial-gradient(var(--strukt-color-border-hairline) 1px, transparent 1px);
+  background-size: 100% 100%, 26px 26px;
+}
+
+.landing-intro {
+  flex: 1 1 380px;
+  min-width: 0;
+}
+
+.landing-chip {
+  display: inline-block;
+  margin: 0 0 var(--strukt-space-4);
+  padding: var(--strukt-space-1) var(--strukt-space-3);
+  border: 1px solid var(--strukt-color-border-hairline);
+  background: var(--strukt-color-surface);
+  font-family: var(--strukt-font-numeral);
+  font-size: var(--strukt-font-numeral-sm-size);
+  letter-spacing: var(--strukt-font-label-tracking);
+  text-transform: uppercase;
+  color: var(--strukt-color-accent-primary);
+}
+
+.landing-title {
+  margin: 0 0 var(--strukt-space-4);
+  font-size: clamp(2.4rem, 6.5vw, 4rem);
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+  color: var(--strukt-color-ink-primary);
+}
+
+.landing-title-accent {
+  color: var(--strukt-color-accent-primary);
+}
+
+.landing-lede {
+  margin: 0 0 var(--strukt-space-5);
+  max-width: 48ch;
+  font-size: 1.05rem;
+  line-height: 1.65;
+  color: var(--strukt-color-ink-secondary);
+}
+
+.landing-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--strukt-space-4);
+}
+
+/* Same shape as the Solve button: this is the page's primary action. */
+.landing-cta {
+  display: inline-block;
+  padding: var(--strukt-space-3) var(--strukt-space-6);
+  border: 1px solid var(--strukt-color-accent-primary);
+  border-radius: var(--strukt-radius-none);
+  background: var(--strukt-color-accent-primary);
+  color: var(--strukt-color-surface);
+  font-size: var(--strukt-font-label-size);
+  font-weight: var(--strukt-font-label-weight);
+  letter-spacing: var(--strukt-font-label-tracking);
+  text-transform: uppercase;
+  text-decoration: none;
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+
+.landing-cta:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 0 0
+    color-mix(in srgb, var(--strukt-color-accent-primary) 28%, transparent);
+}
+
+.landing-cta-small {
+  padding: var(--strukt-space-2) var(--strukt-space-4);
+}
+
+.landing-link {
+  font-size: var(--strukt-font-label-size);
+  font-weight: var(--strukt-font-label-weight);
+  letter-spacing: var(--strukt-font-label-tracking);
+  text-transform: uppercase;
+  color: var(--strukt-color-ink-secondary);
+  text-decoration: none;
+  border-bottom: 1px solid var(--strukt-color-border-hairline);
+  padding-bottom: 2px;
+}
+
+.landing-link:hover {
+  color: var(--strukt-color-ink-primary);
+  border-bottom-color: var(--strukt-color-accent-primary);
+}
+
+.landing-meta {
+  margin: var(--strukt-space-4) 0 0;
+  font-family: var(--strukt-font-numeral);
+  font-size: var(--strukt-font-numeral-sm-size);
+  color: var(--strukt-color-ink-secondary);
+}
+
+/* Framed, so the figure reads as the product rather than free-floating art. */
+.landing-figure-frame {
+  flex: 1 1 380px;
+  min-width: 0;
+  padding: var(--strukt-space-4);
+  border: 1px solid var(--strukt-color-border-hairline);
+  background: var(--strukt-color-surface);
+  box-shadow: 0 12px 32px -18px rgba(16, 35, 59, 0.45);
+}
+
+.landing-figure {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.landing-figure line,
+.landing-figure path,
+.landing-figure circle {
+  vector-effect: non-scaling-stroke;
+}
+
+.figure-load {
+  stroke: var(--strukt-color-accent-primary);
+  fill: var(--strukt-color-accent-primary);
+  stroke-width: 1.25;
+}
+
+.figure-beam {
+  stroke: var(--strukt-color-ink-primary);
+  stroke-width: 2.5;
+}
+
+.figure-support {
+  stroke: var(--strukt-color-ink-primary);
+  stroke-width: 1.5;
+  fill: none;
+}
+
+.figure-node {
+  fill: var(--strukt-color-ink-primary);
+  stroke: none;
+}
+
+.figure-axis {
+  stroke: var(--strukt-color-border-hairline);
+  stroke-width: 1;
+}
+
+.figure-fill {
+  fill: color-mix(in srgb, var(--strukt-color-accent-primary) 12%, transparent);
+  stroke: none;
+}
+
+.figure-curve {
+  stroke: var(--strukt-color-accent-primary);
+  stroke-width: 2;
+}
+
+.figure-label {
+  fill: var(--strukt-color-accent-primary);
+  font-family: var(--strukt-font-numeral);
+  font-size: 11px;
+}
+
+.landing-capabilities {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--strukt-space-2) var(--strukt-space-5);
+  max-width: 1120px;
+  width: 100%;
+  margin: 0 auto;
+  padding: var(--strukt-space-4) var(--strukt-space-5);
+  border-top: 1px solid var(--strukt-color-border-hairline);
+  border-bottom: 1px solid var(--strukt-color-border-hairline);
+  list-style: none;
+  font-family: var(--strukt-font-numeral);
+  font-size: var(--strukt-font-numeral-sm-size);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--strukt-color-ink-secondary);
+}
+
+.landing-features {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: var(--strukt-space-4);
+  max-width: 1120px;
+  width: 100%;
+  margin: 0 auto;
+  padding: clamp(2.5rem, 6vw, 4.5rem) var(--strukt-space-5);
+}
+
+.landing-features article {
+  padding: var(--strukt-space-5);
+  border: 1px solid var(--strukt-color-border-hairline);
+  background: var(--strukt-color-surface);
+  transition: transform 140ms ease, border-color 140ms ease;
+}
+
+.landing-features article:hover {
+  transform: translateY(-3px);
+  border-color: var(--strukt-color-accent-primary);
+}
+
+.feature-icon {
+  width: 24px;
+  height: 24px;
+  margin-bottom: var(--strukt-space-3);
+  fill: none;
+  stroke: var(--strukt-color-accent-primary);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.feature-icon .icon-fill {
+  fill: var(--strukt-color-accent-primary);
+  stroke: none;
+}
+
+.landing-features h2 {
+  margin: 0 0 var(--strukt-space-2);
+  font-size: 1.05rem;
+  letter-spacing: -0.01em;
+  color: var(--strukt-color-ink-primary);
+}
+
+.landing-features p {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.65;
+  color: var(--strukt-color-ink-secondary);
+}
+
+.landing-how {
+  max-width: 1120px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 0 var(--strukt-space-5) clamp(2.5rem, 6vw, 4.5rem);
+}
+
+.landing-section-title {
+  margin: 0 0 var(--strukt-space-5);
+  font-size: var(--strukt-font-label-size);
+  font-weight: var(--strukt-font-label-weight);
+  letter-spacing: var(--strukt-font-label-tracking);
+  text-transform: uppercase;
+  color: var(--strukt-color-ink-secondary);
+}
+
+.landing-steps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--strukt-space-5);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.landing-steps li {
+  padding-top: var(--strukt-space-3);
+  border-top: 2px solid var(--strukt-color-accent-primary);
+}
+
+.landing-step {
+  font-family: var(--strukt-font-numeral);
+  font-size: var(--strukt-font-numeral-sm-size);
+  color: var(--strukt-color-accent-primary);
+}
+
+.landing-steps h3 {
+  margin: var(--strukt-space-2) 0 var(--strukt-space-1);
+  font-size: 1.05rem;
+  color: var(--strukt-color-ink-primary);
+}
+
+.landing-steps p {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: var(--strukt-color-ink-secondary);
+}
+
+.landing-closing {
+  max-width: 1120px;
+  width: 100%;
+  margin: 0 auto var(--strukt-space-6);
+  padding: clamp(2.5rem, 6vw, 4rem) var(--strukt-space-5);
+  border: 1px solid var(--strukt-color-border-hairline);
+  background:
+    radial-gradient(
+      circle at 50% 120%,
+      color-mix(in srgb, var(--strukt-color-accent-primary) 18%, transparent),
+      transparent 60%
+    ),
+    var(--strukt-color-surface);
+  text-align: center;
+}
+
+.landing-closing h2 {
+  margin: 0 0 var(--strukt-space-2);
+  font-size: clamp(1.5rem, 3.5vw, 2.1rem);
+  letter-spacing: -0.02em;
+  color: var(--strukt-color-ink-primary);
+}
+
+.landing-closing p {
+  margin: 0 auto var(--strukt-space-5);
+  max-width: 44ch;
+  font-size: 1rem;
+  line-height: 1.6;
+  color: var(--strukt-color-ink-secondary);
+}
+
+.landing-footer {
+  margin-top: auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--strukt-space-3);
+  padding: var(--strukt-space-3) var(--strukt-space-5);
+  border-top: 1px solid var(--strukt-color-border-hairline);
+}
+
+.landing-colophon {
+  margin: 0;
+  font-family: var(--strukt-font-numeral);
+  font-size: var(--strukt-font-numeral-sm-size);
+  color: var(--strukt-color-ink-secondary);
+}
+
+/* Lift and glow are decoration; nothing here carries meaning by motion alone. */
+@media (prefers-reduced-motion: reduce) {
+  .landing-cta,
+  .landing-features article {
+    transition: none;
+  }
+
+  .landing-cta:hover,
+  .landing-features article:hover {
+    transform: none;
+  }
+}

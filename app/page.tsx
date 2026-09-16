@@ -1,4 +1,5 @@
 import Link from "next/link";
+import "./landing.css";
 
 export const metadata = {
   title: "strukt — see the working, not just the answer",
@@ -9,121 +10,210 @@ export const metadata = {
 /**
  * Landing page.
  *
- * Drawn in the app's own visual language rather than in generic marketing
- * shapes: hairline strokes, zero corner-radius, one accent colour, monospace
- * for anything numeric. The hero illustration is a simply supported beam with
- * its own moment diagram — the thing the product actually does, rather than a
- * stock image of a building.
+ * Modern technical-SaaS layout — generous vertical rhythm, a sticky nav, a
+ * gradient-lit hero, hover-lifting cards — but built on the app's own sharp
+ * geometry rather than the rounded, pastel default. Zero corner-radius is the
+ * brand's most distinctive quality (it comes from drafting), so softening it
+ * here would make arriving at the canvas feel like a different product.
+ *
+ * Nothing on this page claims adoption it does not have: no testimonials, no
+ * user counts, no university logos. The credibility comes from showing the
+ * thing working.
  */
 
 /** Verbatim, and required on every surface (NFR-5, UX-DR8). */
 const DISCLAIMER =
   "strukt is a learning tool — not a substitute for licensed/certified professional engineering judgment";
 
-const POINTS = [
+/** Factual capabilities, each one shipped and checkable in the app. */
+const CAPABILITIES = [
+  "Truss · Frame · Beam",
+  "AISC W-shape catalogue",
+  "SI & Imperial",
+  "BMD · SFD · NFD",
+  "Runs in-browser",
+];
+
+const FEATURES = [
   {
-    title: "Draw it",
-    body: "Place Nodes on a snap-to-grid canvas and connect them. Assign Supports, Materials and Cross-Sections from a real AISC catalogue, then apply point loads or UDLs.",
+    title: "Direct manipulation",
+    body: "Place Nodes on a snap-to-grid canvas and connect them. Supports, Materials and Cross-Sections come from real catalogue data — no dialog boxes, no setup wizard.",
+    icon: (
+      <>
+        <line x1="10" y1="1.5" x2="10" y2="4.5" />
+        <line x1="10" y1="15.5" x2="10" y2="18.5" />
+        <line x1="1.5" y1="10" x2="4.5" y2="10" />
+        <line x1="15.5" y1="10" x2="18.5" y2="10" />
+        <circle cx="10" cy="10" r="5" />
+        <circle cx="10" cy="10" r="1.9" className="icon-fill" />
+      </>
+    ),
   },
   {
-    title: "Solve it",
-    body: "The Direct Stiffness Method runs in your browser, instantly. Bending moment, shear force and normal force diagrams appear with their peaks labelled — plus the reactions at every support.",
+    title: "Answers in a click",
+    body: "The Direct Stiffness Method runs client-side, instantly. Moment, shear and axial diagrams render with their peaks labelled by value and location, alongside every support reaction.",
+    icon: (
+      <>
+        <path d="M3 14 Q7 4 10 9 T17 5" fill="none" />
+        <line x1="2.5" y1="17" x2="17.5" y2="17" />
+      </>
+    ),
   },
   {
-    title: "See the working",
-    body: "Every other tool hands you a number. Show Steps opens the actual matrices: each member's local stiffness with your values substituted in, how they assemble, and the reduced system that produced the answer.",
+    title: "The working, not just the answer",
+    body: "Every other tool hands you a number. Show Steps opens the real matrices — each member's local stiffness with your values in it, the assembly, and the reduced system that produced the result.",
+    icon: (
+      <>
+        <path d="M6.5 3 L3.5 3 L3.5 17 L6.5 17" fill="none" />
+        <path d="M13.5 3 L16.5 3 L16.5 17 L13.5 17" fill="none" />
+        <line x1="8" y1="7.5" x2="12" y2="7.5" />
+        <line x1="8" y1="12.5" x2="12" y2="12.5" />
+      </>
+    ),
   },
+];
+
+const STEPS = [
+  { title: "Draw", body: "Nodes, members, supports." },
+  { title: "Define", body: "Materials, sections, loads." },
+  { title: "Solve", body: "Diagrams, reactions, and the steps behind them." },
 ];
 
 export default function Landing() {
   return (
-    <main className="landing">
-      <section className="landing-hero">
-        <div className="landing-intro">
-          <p className="landing-eyebrow">Structural analysis, shown not told</p>
-          <h1 className="landing-title">strukt</h1>
-          <p className="landing-lede">
-            A 2D structural analysis tool for civil engineering students
-            learning the direct stiffness method. Draw a beam, frame or truss,
-            solve it, and check your hand calculations against every step.
+    <div className="landing">
+      <header className="landing-nav">
+        <span className="landing-mark">strukt</span>
+        <Link href="/canvas" className="landing-cta landing-cta-small">
+          Open the canvas
+        </Link>
+      </header>
+
+      <main>
+        <section className="landing-hero">
+          <div className="landing-intro">
+            <p className="landing-chip">For civil engineering students</p>
+            <h1 className="landing-title">
+              See the working,
+              <br />
+              <span className="landing-title-accent">not just the answer.</span>
+            </h1>
+            <p className="landing-lede">
+              A 2D structural analysis tool for learning the direct stiffness
+              method. Draw a beam, frame or truss, solve it in your browser, and
+              check every step against your own hand calculations.
+            </p>
+            <div className="landing-actions">
+              <Link href="/canvas" className="landing-cta">
+                Open the canvas
+              </Link>
+              <a href="#how" className="landing-link">
+                See how it works
+              </a>
+            </div>
+            <p className="landing-meta">
+              Free · No account needed · Nothing leaves your browser
+            </p>
+          </div>
+
+          {/* The product's own subject matter, drawn with the same primitives
+              the canvas uses: a simply supported beam under a uniform load and
+              the moment diagram it produces. Decorative — the prose beside it
+              already says what it shows. */}
+          <div className="landing-figure-frame">
+            <svg
+              className="landing-figure"
+              viewBox="0 0 420 230"
+              role="presentation"
+              focusable="false"
+            >
+              <g className="figure-load">
+                {[70, 110, 150, 190, 230, 270, 310, 350].map((x) => (
+                  <line key={x} x1={x} y1="30" x2={x} y2="60" />
+                ))}
+                <line x1="62" y1="30" x2="358" y2="30" />
+                {[70, 110, 150, 190, 230, 270, 310, 350].map((x) => (
+                  <path key={`h${x}`} d={`M${x - 4} 54 L${x} 64 L${x + 4} 54 Z`} />
+                ))}
+              </g>
+
+              <line className="figure-beam" x1="60" y1="72" x2="360" y2="72" />
+
+              <g className="figure-support">
+                <path d="M60 72 L48 94 L72 94 Z" />
+                <line x1="42" y1="94" x2="78" y2="94" />
+                <path d="M360 72 L348 94 L372 94 Z" />
+                <circle cx="354" cy="99" r="4" />
+                <circle cx="366" cy="99" r="4" />
+                <line x1="342" y1="105" x2="378" y2="105" />
+              </g>
+
+              <circle className="figure-node" cx="60" cy="72" r="4.5" />
+              <circle className="figure-node" cx="360" cy="72" r="4.5" />
+
+              <line className="figure-axis" x1="60" y1="150" x2="360" y2="150" />
+              <path className="figure-fill" d="M60 150 Q210 222 360 150 Z" />
+              <path className="figure-curve" d="M60 150 Q210 222 360 150" fill="none" />
+              <text className="figure-label" x="210" y="214" textAnchor="middle">
+                M·max = wL²/8
+              </text>
+            </svg>
+          </div>
+        </section>
+
+        <ul className="landing-capabilities">
+          {CAPABILITIES.map((item) => (
+            <li key={item}>{item}</li>
+          ))}
+        </ul>
+
+        <section className="landing-features">
+          {FEATURES.map((feature) => (
+            <article key={feature.title}>
+              <svg
+                viewBox="0 0 20 20"
+                className="feature-icon"
+                aria-hidden="true"
+                focusable="false"
+              >
+                {feature.icon}
+              </svg>
+              <h2>{feature.title}</h2>
+              <p>{feature.body}</p>
+            </article>
+          ))}
+        </section>
+
+        <section className="landing-how" id="how">
+          <h2 className="landing-section-title">How it works</h2>
+          <ol className="landing-steps">
+            {STEPS.map((step, index) => (
+              <li key={step.title}>
+                <span className="landing-step">
+                  {String(index + 1).padStart(2, "0")}
+                </span>
+                <h3>{step.title}</h3>
+                <p>{step.body}</p>
+              </li>
+            ))}
+          </ol>
+        </section>
+
+        <section className="landing-closing">
+          <h2>Built for the night before the exam.</h2>
+          <p>
+            When you need to know whether your own answer is right — and why.
           </p>
           <Link href="/canvas" className="landing-cta">
             Open the canvas
           </Link>
-          <p className="landing-meta">
-            No account needed · Runs entirely in your browser
-          </p>
-        </div>
-
-        {/* The product's own subject matter, drawn in its own language: a
-            simply supported beam under a uniform load, with the moment diagram
-            it produces. Decorative, so it is hidden from assistive tech — the
-            prose beside it already says what it shows. */}
-        <svg
-          className="landing-figure"
-          viewBox="0 0 420 220"
-          role="presentation"
-          focusable="false"
-        >
-          <g className="figure-load">
-            {[70, 110, 150, 190, 230, 270, 310, 350].map((x) => (
-              <line key={x} x1={x} y1="26" x2={x} y2="58" />
-            ))}
-            <line x1="62" y1="26" x2="358" y2="26" />
-            {[70, 110, 150, 190, 230, 270, 310, 350].map((x) => (
-              <path key={`h${x}`} d={`M${x - 4} 52 L${x} 62 L${x + 4} 52 Z`} />
-            ))}
-          </g>
-
-          <line className="figure-beam" x1="60" y1="70" x2="360" y2="70" />
-
-          <g className="figure-support">
-            <path d="M60 70 L48 92 L72 92 Z" />
-            <line x1="42" y1="92" x2="78" y2="92" />
-            <path d="M360 70 L348 92 L372 92 Z" />
-            <circle cx="354" cy="97" r="4" />
-            <circle cx="366" cy="97" r="4" />
-            <line x1="342" y1="103" x2="378" y2="103" />
-          </g>
-
-          <circle className="figure-node" cx="60" cy="70" r="4" />
-          <circle className="figure-node" cx="360" cy="70" r="4" />
-
-          <line className="figure-axis" x1="60" y1="140" x2="360" y2="140" />
-          <path
-            className="figure-curve"
-            d="M60 140 Q210 212 360 140"
-            fill="none"
-          />
-          <text className="figure-label" x="210" y="204" textAnchor="middle">
-            M·max = wL²/8
-          </text>
-        </svg>
-      </section>
-
-      <section className="landing-points">
-        {POINTS.map((point, index) => (
-          <article key={point.title}>
-            <p className="landing-step">{String(index + 1).padStart(2, "0")}</p>
-            <h2>{point.title}</h2>
-            <p>{point.body}</p>
-          </article>
-        ))}
-      </section>
-
-      <section className="landing-closing">
-        <p>
-          Built for the moment before an exam when you need to know whether your
-          own answer is right.
-        </p>
-        <Link href="/canvas" className="landing-cta">
-          Open the canvas
-        </Link>
-      </section>
+        </section>
+      </main>
 
       <footer className="landing-footer">
         <p className="disclaimer-badge">{DISCLAIMER}</p>
+        <p className="landing-colophon">strukt · MVP</p>
       </footer>
-    </main>
+    </div>
   );
 }

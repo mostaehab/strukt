@@ -521,8 +521,13 @@ body {
 
 /* Segmented control with an underlined active state, matching the units-toggle
    pattern DESIGN.md specifies -- not a filled pill. */
-.theme-toggle {
+.units-toggle {
   margin-left: auto;
+  display: inline-flex;
+  gap: var(--strukt-space-1);
+}
+
+.theme-toggle {
   display: inline-flex;
   gap: var(--strukt-space-1);
 }

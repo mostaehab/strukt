@@ -2,6 +2,7 @@
 
 import useStructureStore from "@/store/useStructureStore";
 import ThemeToggle from "@/components/ui/ThemeToggle";
+import UnitsToggle from "@/components/ui/UnitsToggle";
 
 /**
  * The Solve control and the banner explaining a refused attempt.
@@ -47,6 +48,7 @@ export default function SolveBar() {
         {blocked ? "Solve — blocked" : "Solve"}
       </button>
 
+      <UnitsToggle />
       <ThemeToggle />
 
       {/* Destructive, so it sits apart from Solve and reads as an outline

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import useStructureStore from "@/store/useStructureStore";
+import useUnitStore from "@/store/useUnitStore";
 import type {
   Load,
   LoadKind,
@@ -18,8 +19,14 @@ import {
   type AxisDirection,
 } from "@/engine/load";
 import {
-  formatKilonewtons,
-  kilonewtonsToNewtons,
+  areaToDisplay,
+  areaToStore,
+  areaUnit,
+  forceToStore,
+  formatForce,
+  inertiaToDisplay,
+  inertiaToStore,
+  inertiaUnit,
   loadUnitLabel,
 } from "@/utils/units";
 import { elementLabel as labelForElement, nodeLabel } from "@/utils/labels";
@@ -360,7 +367,8 @@ function LoadBlock({
   // inside the effect that reads it.
   const focusAfterDeleteRef = useRef<number | null>(null);
 
-  const unit = loadUnitLabel(kind);
+  const unitSystem = useUnitStore((s) => s.system);
+  const unit = loadUnitLabel(kind, unitSystem);
   const rejection = positiveRejection(`Load on ${entityLabel}`, "magnitude");
 
   // Deleting the focused control would otherwise drop focus to <body>, leaving
@@ -391,7 +399,7 @@ function LoadBlock({
       !addLoad(
         newLoad(
           crypto.randomUUID(),
-          kilonewtonsToNewtons(kilonewtons),
+          forceToStore(kilonewtons, unitSystem),
           AXIS_DIRECTIONS[axis],
         ),
       )
@@ -484,7 +492,7 @@ function LoadBlock({
           {loads.map((load, index) => (
             <li key={load.id} className="load-row">
               <span className="load-tag">
-                L: {formatKilonewtons(load.magnitude, 2)} {unit},{" "}
+                L: {formatForce(load.magnitude, unitSystem, 2)} {unit},{" "}
                 {axisLabelFor(load.direction)}
               </span>
               <button
@@ -526,6 +534,7 @@ export default function PropertiesPanel({
   const elements = useStructureStore((s) => s.elements);
   const loads = useStructureStore((s) => s.loads);
   const structureType = useStructureStore((s) => s.type);
+  const unitSystem = useUnitStore((s) => s.system);
   const updateNode = useStructureStore((s) => s.updateNode);
   const updateElement = useStructureStore((s) => s.updateElement);
   const setStructureType = useStructureStore((s) => s.setStructureType);
@@ -721,12 +730,18 @@ export default function PropertiesPanel({
             <NumericField
               key={`${selectedElement.id}-area`}
               id="element-area"
-              label="Area (m²)"
+              label={`Area (${areaUnit(unitSystem)})`}
               fieldName="area"
               entityLabel={`Element ${elementLabel}`}
-              value={selectedElement.area}
+              value={
+                selectedElement.area === null
+                  ? null
+                  : areaToDisplay(selectedElement.area, unitSystem)
+              }
               onCommit={(value) =>
-                updateElement(selectedElement.id, { area: value })
+                updateElement(selectedElement.id, {
+                  area: value === null ? null : areaToStore(value, unitSystem),
+                })
               }
             />
 
@@ -736,12 +751,19 @@ export default function PropertiesPanel({
               <NumericField
                 key={`${selectedElement.id}-inertia`}
                 id="element-inertia"
-                label="Inertia (m⁴)"
+                label={`Inertia (${inertiaUnit(unitSystem)})`}
                 fieldName="inertia"
                 entityLabel={`Element ${elementLabel}`}
-                value={selectedElement.inertia}
+                value={
+                  selectedElement.inertia === null
+                    ? null
+                    : inertiaToDisplay(selectedElement.inertia, unitSystem)
+                }
                 onCommit={(value) =>
-                  updateElement(selectedElement.id, { inertia: value })
+                  updateElement(selectedElement.id, {
+                    inertia:
+                      value === null ? null : inertiaToStore(value, unitSystem),
+                  })
                 }
               />
             )}

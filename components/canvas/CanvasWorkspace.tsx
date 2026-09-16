@@ -7,7 +7,8 @@ import useStructureStore from "@/store/useStructureStore";
 import { canConnect } from "@/engine/geometry";
 import { createElement } from "@/engine/element";
 import type { Load, StructuralNode } from "@/engine/types";
-import { formatKilonewtons, loadUnitLabel } from "@/utils/units";
+import { formatForce, loadUnitLabel } from "@/utils/units";
+import useUnitStore, { type UnitSystem } from "@/store/useUnitStore";
 import { nodeLabel } from "@/utils/labels";
 import type { Tool } from "@/components/panels/Toolbar";
 import NodeGlyph from "./NodeGlyph";
@@ -42,8 +43,8 @@ function nextElementId() {
 }
 
 /** Canvas labels carry no `L:` prefix -- that belongs to the panel tag only. */
-function loadLabel(load: Load): string {
-  return `${formatKilonewtons(load.magnitude)} ${loadUnitLabel(load.kind)}`;
+function loadLabel(load: Load, system: UnitSystem): string {
+  return `${formatForce(load.magnitude, system)} ${loadUnitLabel(load.kind, system)}`;
 }
 
 /**
@@ -94,6 +95,7 @@ export default function CanvasWorkspace({
   // Read from the CSS tokens rather than a second copy of the palette in JS,
   // so the canvas follows the theme instead of staying light under a dark UI.
   const COLORS = useCanvasColors();
+  const unitSystem = useUnitStore((s) => s.system);
 
   const nodes = useStructureStore((s) => s.nodes);
   const elements = useStructureStore((s) => s.elements);
@@ -354,7 +356,7 @@ export default function CanvasWorkspace({
                 direction={load.direction}
                 color={COLORS.accent}
                 haloColor={COLORS.background}
-                label={loadLabel(load)}
+                label={loadLabel(load, unitSystem)}
                 stackIndex={stackIndex}
               />
             );
@@ -373,7 +375,7 @@ export default function CanvasWorkspace({
               direction={load.direction}
               color={COLORS.accent}
               haloColor={COLORS.background}
-              label={loadLabel(load)}
+              label={loadLabel(load, unitSystem)}
               stackIndex={stackIndex}
             />
           );

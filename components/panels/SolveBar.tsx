@@ -18,7 +18,6 @@ import useStructureStore from "@/store/useStructureStore";
 export default function SolveBar() {
   const solve = useStructureStore((s) => s.solve);
   const solveErrors = useStructureStore((s) => s.solveErrors);
-  const hasResults = useStructureStore((s) => s.results !== null);
 
   const blocked = solveErrors.length > 0;
 
@@ -32,7 +31,9 @@ export default function SolveBar() {
         {blocked ? "Solve — blocked" : "Solve"}
       </button>
 
-      {hasResults && <span className="solve-state">Solved</span>}
+      {/* The solved state is reported once, in the results head, where the
+          mockup puts it -- showing it here as well would say the same thing
+          twice in two places. */}
 
       {/*
         Always present, so the region exists before it has anything to say --

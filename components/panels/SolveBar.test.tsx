@@ -64,14 +64,15 @@ describe("SolveBar", () => {
     expect(region.getAttribute("aria-live")).toBe("polite");
   });
 
-  it("solves a valid structure and reports it solved", () => {
+  it("solves a valid structure and raises no complaint", () => {
     seedSolvableBeam();
     render(<SolveBar />);
     fireEvent.click(solveButton());
 
     expect(useStructureStore.getState().results).not.toBeNull();
-    screen.getByText("Solved");
     expect(screen.queryByText(/Can't solve/)).toBeNull();
+    // The solved state itself is reported in the results head, not here --
+    // see ResultsArea.test.tsx.
   });
 
   it("explains a refusal in the live region rather than only in the console", () => {
@@ -141,16 +142,18 @@ describe("SolveBar", () => {
     expect(solveButton().textContent).toBe("Solve");
   });
 
-  it("drops a solved state as soon as the structure changes", () => {
+  it("drops the stored result as soon as the structure changes", () => {
     seedSolvableBeam();
     render(<SolveBar />);
     fireEvent.click(solveButton());
-    screen.getByText("Solved");
+    expect(useStructureStore.getState().results).not.toBeNull();
 
     act(() => {
       useStructureStore.getState().updateNode("b", { x: 5 });
     });
-    expect(screen.queryByText("Solved")).toBeNull();
+    // What the user sees of this is the results area emptying; the bar's own
+    // job is only to stop claiming the structure is solvable.
+    expect(useStructureStore.getState().results).toBeNull();
   });
 
   it("is reachable and operable by keyboard", () => {

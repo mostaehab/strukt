@@ -336,3 +336,125 @@ body {
 .error-banner p + p {
   margin-top: var(--strukt-space-1);
 }
+
+/* Results: an inline bottom-docked expansion of the Canvas Workspace, never a
+   separate route (EXPERIENCE.md resolves the PRD's "results view" this way). */
+.results-area {
+  border-top: 1px solid var(--strukt-color-border-hairline);
+  background: var(--strukt-color-surface);
+  padding: var(--strukt-space-3) var(--strukt-space-4);
+}
+
+.results-head {
+  display: flex;
+  align-items: center;
+  gap: var(--strukt-space-3);
+  margin-bottom: var(--strukt-space-3);
+}
+
+.results-head h3 {
+  margin: 0;
+  font-size: var(--strukt-font-label-size);
+  font-weight: var(--strukt-font-label-weight);
+  letter-spacing: var(--strukt-font-label-tracking);
+  text-transform: uppercase;
+  color: var(--strukt-color-ink-secondary);
+}
+
+/* One outline-pill pattern behind the Reaction and Solved tags -- no filled
+   variant anywhere in the system except the error banner. */
+.tag-outline {
+  display: inline-block;
+  padding: 2px var(--strukt-space-2);
+  border: 1px solid currentColor;
+  border-radius: var(--strukt-radius-none);
+  background: var(--strukt-color-surface);
+  font-family: var(--strukt-font-numeral);
+  font-size: var(--strukt-font-numeral-sm-size);
+  white-space: nowrap;
+}
+
+.tag-solved,
+.tag-reaction {
+  color: var(--strukt-color-accent-success);
+}
+
+.diagrams {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--strukt-space-3);
+}
+
+.diagram-card {
+  flex: 1 1 220px;
+  min-width: 200px;
+  padding: var(--strukt-space-3);
+  border: 1px solid var(--strukt-color-border-hairline);
+  border-radius: var(--strukt-radius-none);
+  background: var(--strukt-color-surface);
+  box-shadow: 0 1px 2px rgba(16, 35, 59, 0.06);
+}
+
+.diagram-card h4 {
+  margin: 0 0 var(--strukt-space-2);
+  font-size: var(--strukt-font-label-size);
+  font-weight: var(--strukt-font-label-weight);
+  letter-spacing: var(--strukt-font-label-tracking);
+  text-transform: uppercase;
+  color: var(--strukt-color-ink-secondary);
+}
+
+/* The peak label is the accessible representation of the curve -- a fuller
+   description of its shape was considered for screen readers and explicitly
+   decided against, so this text carries that weight. */
+.diagram-peak {
+  display: block;
+  margin-top: var(--strukt-space-1);
+  font-family: var(--strukt-font-numeral);
+  font-size: var(--strukt-font-numeral-sm-size);
+  font-weight: 400;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--strukt-color-accent-primary);
+}
+
+.diagram-card svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.diagram-baseline {
+  stroke: var(--strukt-color-border-hairline);
+  stroke-width: 1;
+}
+
+.diagram-curve {
+  stroke: var(--strukt-color-accent-primary);
+  stroke-width: 2;
+}
+
+.react-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--strukt-font-numeral);
+  font-size: var(--strukt-font-numeral-sm-size);
+}
+
+.react-table th,
+.react-table td {
+  padding: var(--strukt-space-1) var(--strukt-space-1);
+  text-align: left;
+  font-weight: 400;
+}
+
+.react-table thead th {
+  color: var(--strukt-color-ink-secondary);
+  border-bottom: 1px solid var(--strukt-color-border-hairline);
+}
+
+.empty-note {
+  margin: 0;
+  font-size: var(--strukt-font-body-size);
+  color: var(--strukt-color-ink-secondary);
+}

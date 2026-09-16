@@ -7,6 +7,7 @@ import PropertiesPanel, {
 } from "@/components/panels/PropertiesPanel";
 import CanvasWorkspace from "@/components/canvas/CanvasWorkspace";
 import SolveBar from "@/components/panels/SolveBar";
+import ResultsArea from "@/components/panels/ResultsArea";
 import useStructureStore from "@/store/useStructureStore";
 import {
   loadsRemovedWithElement,
@@ -177,6 +178,7 @@ export default function Home() {
           selectedElementId={selectedElementId}
         />
       </div>
+      <ResultsArea />
     </div>
   );
 }

@@ -87,3 +87,38 @@ export function formatKilonewtons(
 export function loadUnitLabel(kind: LoadKind): string {
   return kind === "udl" ? "kN/m" : "kN";
 }
+
+/**
+ * A moment in kilonewton-metres, for the BMD's peak label and Reaction tags.
+ *
+ * Shares `formatKilonewtons`' scaling because the conversion is the same
+ * divide-by-1000 -- newton-metres to kilonewton-metres -- and shares its
+ * guards against rendering a real value as `0.00` or as a raw float.
+ */
+export function formatKilonewtonMetres(
+  newtonMetres: number,
+  fractionDigits?: number,
+): string {
+  return formatKilonewtons(newtonMetres, fractionDigits);
+}
+
+/** Display unit for a moment. Story 1.7's toggle hooks in here too. */
+export const MOMENT_UNIT = "kN·m";
+
+/** Display unit for a force. Story 1.7's toggle hooks in here too. */
+export const FORCE_UNIT = "kN";
+
+/**
+ * Signed force with the word a student reads off an NFD.
+ *
+ * FR-14 requires tension and compression to be distinguished by sign in the
+ * label text alone, never by an additional colour -- the palette carries no
+ * hue for it, and `DESIGN.md`'s Colors rule forbids inventing one.
+ */
+export function axialForceLabel(newtons: number): string {
+  const sign = newtons > 0 ? "+" : newtons < 0 ? "−" : "";
+  const magnitude = formatKilonewtons(Math.abs(newtons), 1);
+  if (newtons === 0) return `0 ${FORCE_UNIT}`;
+  const sense = newtons > 0 ? "tension" : "compression";
+  return `${sign}${magnitude} ${FORCE_UNIT} (${sense})`;
+}

@@ -127,10 +127,119 @@ interface ElementResult {
   stress: number;
 }
 
+/**
+ * @deprecated Superseded by `SolveResult`, which is AD-3's contract. These
+ * three shapes predate it and carry none of the intermediate quantities Show
+ * Steps needs. Still referenced by `StructureState.analysisResults`; both go
+ * when Story 1.5b renames that field to `results`.
+ */
 export interface AnalysisResults {
   nodeResults: Record<string, NodeResult>;
   elementResults: Record<string, ElementResult>;
 }
+
+/** Sentinel in `dofMap` for a degree of freedom this Structure Type has none of. */
+export const NO_DOF = -1;
+
+/**
+ * One Element's end forces, in the member's own local frame.
+ *
+ * Axial is positive in tension, which is what FR-14's NFD label reads off
+ * ("+12.0 kN (tension)"). Shear and moment are reported at both ends because
+ * Story 1.6's SFD and BMD need the value at each end to draw the diagram
+ * between them; on a Truss member all four are zero, since a truss carries
+ * axial force only.
+ */
+export interface ElementForce {
+  /** N, positive in tension. */
+  axial: number;
+  /** N, at the start Node. */
+  shearStart: number;
+  /** N, at the end Node. */
+  shearEnd: number;
+  /** N·m, at the start Node. */
+  momentStart: number;
+  /** N·m, at the end Node. */
+  momentEnd: number;
+}
+
+export type SolveErrorCode =
+  | "NOTHING_TO_ANALYZE"
+  | "ELEMENT_NO_MATERIAL"
+  | "ELEMENT_NO_SECTION"
+  | "ELEMENT_TRUSS_UDL"
+  | "NODE_UNRESTRAINED"
+  | "COMPONENT_UNRESTRAINED"
+  | "SINGULAR_SYSTEM";
+
+/**
+ * A blocked Solve. `message` is always the specific, actionable text FR-11
+ * requires -- never a generic string -- and names the responsible entity, whose
+ * id is carried alongside so the UI can highlight it without parsing prose.
+ */
+export interface SolveError {
+  code: SolveErrorCode;
+  message: string;
+  nodeId?: string;
+  elementId?: string;
+}
+
+/**
+ * Everything one `solve()` produces (AD-3): final answers *and* every
+ * intermediate Show Steps (FR-17 to FR-19) will need, computed once. No second
+ * code path ever re-derives any of this for display.
+ *
+ * Every per-entity field is keyed by entity id, never array index, so a result
+ * survives reordering. Every numeric field is a plain number, number[] or
+ * number[][] -- no mathjs Matrix crosses this boundary, which keeps the whole
+ * result JSON-serialisable.
+ */
+export interface SolveResult {
+  /** Per Node: [ux, uy, theta_z] in metres and radians. theta_z is 0 on a Truss. */
+  displacements: Record<string, [number, number, number]>;
+  /**
+   * Per *supported* Node: [rx, ry, rmz] in newtons and newton-metres. Free
+   * Nodes are absent rather than present-and-zero -- FR-15 reports Reactions at
+   * supported Nodes, and an entry implies a restraint.
+   */
+  reactions: Record<string, [number, number, number]>;
+  /** Per Element, in its local frame. */
+  elementForces: Record<string, ElementForce>;
+  /**
+   * Per Element: the *local* stiffness matrix, which is what FR-17 displays
+   * with that Element's own values substituted in. 4x4 on a Truss, 6x6 on a
+   * Frame. The assembled global matrix is an implementation detail Show Steps
+   * never names.
+   */
+  localStiffness: Record<string, number[][]>;
+  /**
+   * Per Node: the global DOF index of [ux, uy, theta_z], which is the mapping
+   * FR-18 displays. `NO_DOF` marks a rotational slot on a Truss, which has no
+   * such freedom.
+   */
+  dofMap: Record<string, [number, number, number]>;
+  /**
+   * The boundary-condition-reduced system FR-19 displays: the free-DOF
+   * stiffness matrix, its load vector, and a human-readable label per free DOF
+   * (for example `N1:ux`). `freeDofs` is carried rather than re-derived from
+   * Supports at render time -- re-deriving it is the same solver drift AD-3
+   * exists to prevent, through a loophole.
+   */
+  reducedSystem: {
+    K: number[][];
+    F: number[];
+    freeDofs: string[];
+  };
+}
+
+/**
+ * What `solve()` hands back. A blocked Solve carries every reason it was
+ * blocked, so a student fixing three incomplete Elements sees all three rather
+ * than rediscovering them one Solve at a time.
+ */
+export type SolveOutcome =
+  | { ok: true; result: SolveResult }
+  | { ok: false; errors: SolveError[] };
 
 export interface StructureState {
   type: StructureType;

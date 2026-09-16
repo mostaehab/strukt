@@ -82,6 +82,18 @@ body {
   stroke: var(--strukt-color-accent-primary);
 }
 
+/* Joints and pointer bodies are solid; everything else is a hairline. Both
+   follow currentColor, so an icon tracks its button's active state without
+   restating the palette. */
+.tool-icon .icon-fill {
+  fill: currentColor;
+  stroke: none;
+}
+
+.toolbar-button.is-active .tool-icon .icon-fill {
+  fill: var(--strukt-color-accent-primary);
+}
+
 .workspace-body {
   flex: 1;
   min-height: 0;
@@ -489,7 +501,6 @@ body {
 /* Destructive, so outline rather than filled (DESIGN.md's
    button-danger-outline) and visually separated from Solve. */
 .clear-button {
-  margin-left: auto;
   padding: var(--strukt-space-2) var(--strukt-space-4);
   border: 1px solid var(--strukt-color-accent-danger);
   border-radius: var(--strukt-radius-none);
@@ -506,4 +517,31 @@ body {
   border-color: var(--strukt-color-border-hairline);
   color: var(--strukt-color-ink-secondary);
   cursor: default;
+}
+
+/* Segmented control with an underlined active state, matching the units-toggle
+   pattern DESIGN.md specifies -- not a filled pill. */
+.theme-toggle {
+  margin-left: auto;
+  display: inline-flex;
+  gap: var(--strukt-space-1);
+}
+
+.theme-option {
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: var(--strukt-radius-none);
+  background: transparent;
+  color: var(--strukt-color-ink-secondary);
+  padding: var(--strukt-space-1) var(--strukt-space-2);
+  font-size: var(--strukt-font-label-size);
+  font-weight: var(--strukt-font-label-weight);
+  letter-spacing: var(--strukt-font-label-tracking);
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.theme-option.is-active {
+  border-bottom-color: var(--strukt-color-accent-primary);
+  color: var(--strukt-color-ink-primary);
 }

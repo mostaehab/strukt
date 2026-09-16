@@ -25,6 +25,11 @@
   --strukt-color-error-banner-fill: #fcebea;
   --strukt-color-border-hairline: #c3cad4;
 
+  /* Canvas surfaces -- see the note on their dark counterparts. */
+  --strukt-canvas-background: #eef1f5;
+  --strukt-canvas-ink: #10151c;
+  --strukt-canvas-grid: #c3cad4;
+
   /* Typography: engineering values are always set in the numeral (monospace)
      stack, field captions in the uppercase label style. Sizes/weights/tracking
      are the design spine's verbatim, not the mockup's approximations --
@@ -66,8 +71,13 @@
   --strukt-touch-target: 44px;
 }
 
+/* Theme resolution, in precedence order:
+   1. an explicit choice on <html data-theme="...">, which wins either way;
+   2. the OS preference, when no explicit choice has been made.
+   Written this way so picking "light" on a dark-mode machine actually works --
+   a bare media query would override it. */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --strukt-color-background: #0a0a0a;
     --strukt-color-surface: #17191c;
     --strukt-color-ink-primary: #ededed;
@@ -77,5 +87,30 @@
     --strukt-color-accent-success: #4fbe8d;
     --strukt-color-error-banner-fill: rgba(255, 107, 94, 0.14);
     --strukt-color-border-hairline: #3a3f47;
+    /* Canvas surfaces. r3f cannot read CSS custom properties, so these are
+       bridged into three.js by components/canvas/useCanvasColors.ts -- declared
+       here so tokens.css stays the single source for every colour. */
+    --strukt-canvas-background: #12161c;
+    --strukt-canvas-ink: #e7edf2;
+    --strukt-canvas-grid: #2b323c;
   }
 }
+
+:root[data-theme="dark"] {
+  --strukt-color-background: #0a0a0a;
+  --strukt-color-surface: #17191c;
+  --strukt-color-ink-primary: #ededed;
+  --strukt-color-ink-secondary: #a1a8b3;
+  --strukt-color-accent-primary: #6d97f2;
+  --strukt-color-accent-danger: #ff6b5e;
+  --strukt-color-accent-success: #4fbe8d;
+  --strukt-color-error-banner-fill: rgba(255, 107, 94, 0.14);
+  --strukt-color-border-hairline: #3a3f47;
+    /* Canvas surfaces. r3f cannot read CSS custom properties, so these are
+       bridged into three.js by components/canvas/useCanvasColors.ts -- declared
+       here so tokens.css stays the single source for every colour. */
+  --strukt-canvas-background: #12161c;
+  --strukt-canvas-ink: #e7edf2;
+  --strukt-canvas-grid: #2b323c;
+}
+

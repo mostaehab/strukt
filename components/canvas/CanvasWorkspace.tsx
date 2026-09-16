@@ -14,6 +14,7 @@ import NodeGlyph from "./NodeGlyph";
 import ElementLine from "./ElementLine";
 import LoadGlyph from "./LoadGlyph";
 import SupportGlyph from "./SupportGlyph";
+import useCanvasColors from "./useCanvasColors";
 import { NODE_GLYPH_Z, PIXELS_PER_WORLD_UNIT } from "./canvasConstants";
 
 const GRID_SIZE = 1;
@@ -27,13 +28,6 @@ const ELEMENT_HIT_WIDTH = NODE_RADIUS * 2;
 // dimensions divided by exactly this number.
 const CAMERA_ZOOM = PIXELS_PER_WORLD_UNIT;
 const BEAM_Y = 0;
-
-const COLORS = {
-  background: "#eef1f5",
-  ink: "#10151c",
-  accent: "#2f6fed",
-  grid: "#c3cad4",
-} as const;
 
 function snap(value: number, gridSize = GRID_SIZE) {
   return Math.round(value / gridSize) * gridSize;
@@ -97,6 +91,10 @@ export default function CanvasWorkspace({
   selectedElementId,
   onSelectElement,
 }: CanvasWorkspaceProps) {
+  // Read from the CSS tokens rather than a second copy of the palette in JS,
+  // so the canvas follows the theme instead of staying light under a dark UI.
+  const COLORS = useCanvasColors();
+
   const nodes = useStructureStore((s) => s.nodes);
   const elements = useStructureStore((s) => s.elements);
   const loads = useStructureStore((s) => s.loads);

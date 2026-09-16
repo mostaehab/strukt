@@ -121,6 +121,16 @@ body {
   border-radius: var(--strukt-radius-none);
 }
 
+/* The region stays in the DOM even when silent -- an aria-live region added at
+   the same moment as its content is not reliably announced -- but with nothing
+   to say it must not paint a box. Kept visible-but-blank rather than
+   display:none, which would risk swallowing the announcement that fills it. */
+.canvas-status:empty {
+  padding: 0;
+  border-color: transparent;
+  background: transparent;
+}
+
 .properties-panel {
   width: 260px;
   flex-shrink: 0;
@@ -571,7 +581,9 @@ body {
 }
 
 /* Show Steps switch. Hairline-bordered, thumb shifting ink-secondary (off) to
-   accent-primary (on) -- components.steps-toggle-switch. */
+   accent-primary (on) -- components.steps-toggle-switch. Square, because the
+   zero-radius rule is totalizing for chrome; the one full-radius exception is
+   reserved for canvas glyphs. */
 .steps-toggle {
   display: inline-flex;
   align-items: center;
@@ -579,13 +591,8 @@ body {
   margin-left: auto;
   border: 0;
   background: transparent;
-  padding: 0;
+  padding: var(--strukt-space-1);
   cursor: pointer;
-}
-
-.steps-toggle:disabled {
-  cursor: default;
-  opacity: 0.55;
 }
 
 .steps-toggle-label {
@@ -594,24 +601,35 @@ body {
   letter-spacing: var(--strukt-font-label-tracking);
   text-transform: uppercase;
   color: var(--strukt-color-ink-secondary);
+  transition: color 120ms ease;
 }
 
 .steps-switch {
-  display: inline-flex;
-  align-items: center;
-  width: 34px;
-  height: 18px;
-  padding: 2px;
+  position: relative;
+  display: inline-block;
+  width: 36px;
+  height: 20px;
   border: 1px solid var(--strukt-color-border-hairline);
   border-radius: var(--strukt-radius-none);
-  background: var(--strukt-color-surface);
+  background: var(--strukt-color-background);
+  transition: border-color 120ms ease, background-color 120ms ease;
 }
 
 .steps-thumb {
-  width: 12px;
-  height: 12px;
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
   background: var(--strukt-color-ink-secondary);
   transition: transform 120ms ease, background-color 120ms ease;
+}
+
+/* On: the thumb travels and takes the accent, and the track picks up the same
+   hue at its edge so the state reads from the whole control rather than from a
+   12px square alone. */
+.steps-toggle.is-on .steps-switch {
+  border-color: var(--strukt-color-accent-primary);
 }
 
 .steps-toggle.is-on .steps-thumb {
@@ -623,9 +641,35 @@ body {
   color: var(--strukt-color-ink-primary);
 }
 
-/* Motion is decoration here; the state is carried by position and colour. */
+.steps-toggle:hover:not(:disabled) .steps-switch {
+  border-color: var(--strukt-color-ink-secondary);
+}
+
+.steps-toggle:hover:not(:disabled) .steps-toggle-label {
+  color: var(--strukt-color-ink-primary);
+}
+
+/* Disabled is stated in the control's own colours rather than by fading the
+   whole thing, so the label stays legible enough to read as an affordance that
+   exists but is not yet available. */
+.steps-toggle:disabled {
+  cursor: default;
+}
+
+.steps-toggle:disabled .steps-switch {
+  border-style: dashed;
+  background: transparent;
+}
+
+.steps-toggle:disabled .steps-thumb {
+  background: var(--strukt-color-border-hairline);
+}
+
+/* Motion is decoration; the state is carried by position and colour. */
 @media (prefers-reduced-motion: reduce) {
-  .steps-thumb {
+  .steps-thumb,
+  .steps-switch,
+  .steps-toggle-label {
     transition: none;
   }
 }

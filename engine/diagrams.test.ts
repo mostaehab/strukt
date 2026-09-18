@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { structureDiagrams, type DiagramSet } from "./diagrams";
+import { peaksOf, structureDiagrams, type DiagramSet } from "./diagrams";
 import { solve } from "./stiffness";
 import type {
   EnginePayload,
@@ -258,5 +258,24 @@ describe("degenerate cases", () => {
       {},
     );
     expect(set.elements).toEqual([]);
+  });
+
+  it("reports no peak at all when a distribution is zero everywhere", () => {
+    // A Truss carries axial force only, so its bending arrays are zero by
+    // construction. Naming a member and a station for that zero states a
+    // computed result where nothing was computed.
+    const zero = [
+      {
+        elementId: "a",
+        length: 4,
+        axial: [{ x: 0, value: 5 }],
+        shear: [{ x: 0, value: 0 }, { x: 4, value: 0 }],
+        moment: [{ x: 0, value: 0 }, { x: 4, value: 0 }],
+      },
+    ];
+    expect(peaksOf(zero, (d) => d.moment)).toEqual({ max: null, min: null });
+    expect(peaksOf(zero, (d) => d.shear)).toEqual({ max: null, min: null });
+    // A real distribution still reports both sides.
+    expect(peaksOf(zero, (d) => d.axial).max).not.toBeNull();
   });
 });

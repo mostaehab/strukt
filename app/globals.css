@@ -483,6 +483,49 @@ body {
   stroke-width: 2;
 }
 
+/* The geometry view: a Frame's or Truss's diagram drawn over the structure.
+   The viewBox is in metres, so every stroke here sets non-scaling-stroke in
+   the markup -- without it a 6 m frame and a 0.6 m one would draw hairlines
+   ten times apart. */
+/* A frame is two-dimensional, so the geometry cards get roughly twice the
+   basis of a strip card -- squeezed to 220px a portal frame's diagram is
+   legible as a shape but not as numbers. */
+.diagram-card-geometry {
+  flex: 1 1 420px;
+  min-width: 280px;
+}
+
+.structure-diagram {
+  display: block;
+  width: 100%;
+  height: auto;
+  /* Taller than the strip cards: a frame is two-dimensional and a 70-unit
+     band would flatten it to a line. */
+  max-height: 220px;
+}
+
+/* The structure itself, under its own diagram. Heavier than the hairline
+   border so the member reads as the datum the ordinate is measured from. */
+.structure-member {
+  stroke: var(--strukt-color-ink-primary);
+  stroke-width: 2;
+  fill: none;
+}
+
+.diagram-region {
+  fill: color-mix(in srgb, var(--strukt-color-accent-primary) 14%, transparent);
+  stroke: none;
+}
+
+/* The ordinate's end ties back to the member. Dashed, because they are
+   construction lines rather than part of the curve. */
+.diagram-tie {
+  stroke: var(--strukt-color-accent-primary);
+  stroke-width: 1;
+  stroke-dasharray: 2 2;
+  fill: none;
+}
+
 .react-table {
   width: 100%;
   border-collapse: collapse;

@@ -45,6 +45,9 @@ export interface ElementDiagram {
   moment: DiagramSample[];
 }
 
+/** The three distributions, named so a consumer can pick one generically. */
+export type DiagramKind = "moment" | "shear" | "axial";
+
 export interface DiagramSet {
   elements: ElementDiagram[];
   /** Peak positive and negative across the whole structure, with location. */
@@ -155,16 +158,27 @@ function samplePositions(
   return positions.sort((a, b) => a - b);
 }
 
-/** Largest positive and largest negative sample, with where each occurs. */
+/**
+ * Largest positive and largest negative sample, with where each occurs.
+ *
+ * A distribution that is zero everywhere has no peak, and both sides come back
+ * null rather than naming whichever member happened to be sampled first. That
+ * case is not hypothetical: a Truss carries no bending at all, so its shear and
+ * moment arrays are zero by construction, and reporting `0.0 kN.m at 0.00 m
+ * along E1` states a fact about E1 that is true of every member equally -- it
+ * reads as a computed result when nothing was computed.
+ */
 export function peaksOf(
   diagrams: ElementDiagram[],
   pick: (diagram: ElementDiagram) => DiagramSample[],
 ): { max: DiagramPeak | null; min: DiagramPeak | null } {
   let max: DiagramPeak | null = null;
   let min: DiagramPeak | null = null;
+  let anyNonZero = false;
 
   for (const diagram of diagrams) {
     for (const sample of pick(diagram)) {
+      if (sample.value !== 0) anyNonZero = true;
       if (max === null || sample.value > max.value) {
         max = { value: sample.value, at: sample.x, elementId: diagram.elementId };
       }
@@ -173,7 +187,7 @@ export function peaksOf(
       }
     }
   }
-  return { max, min };
+  return anyNonZero ? { max, min } : { max: null, min: null };
 }
 
 /** Every member's diagrams, plus the structure-wide peaks FR-12/13 label. */

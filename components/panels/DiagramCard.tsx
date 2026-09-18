@@ -3,7 +3,12 @@
 import type { DiagramSample } from "@/engine/diagrams";
 
 /**
- * One results card: a title, its peak label, and the curve.
+ * One results card for a Beam: a title, its peak label, and the curve.
+ *
+ * Members laid end to end on a single horizontal axis, which is the correct
+ * picture *only* for a Beam -- its members are collinear by construction, so
+ * the strip is the structure. A Frame or a Truss uses `StructureDiagram`
+ * instead, which plots each ordinate perpendicular to its own member.
  *
  * The peak label is the accessible representation of the diagram.
  * `EXPERIENCE.md` records that a fuller description of the curve's shape was
@@ -68,14 +73,18 @@ export default function DiagramCard({
 }: DiagramCardProps) {
   const { yOf, xOf, zeroY } = project(series);
 
-  const points = series
-    .flatMap((s) =>
-      s.samples.map((sample) => {
+  // One polyline per member, never one across all of them. Joining them would
+  // draw a segment between the end of one member's diagram and the start of
+  // the next, which is fiction wherever the two values differ -- a step in
+  // shear at a point load is a real discontinuity, not a ramp.
+  const polylines = series.map((s) =>
+    s.samples
+      .map((sample) => {
         const x = xOf(s.offset + sample.x);
         return `${x.toFixed(2)},${yOf(sample.value).toFixed(2)}`;
-      }),
-    )
-    .join(" ");
+      })
+      .join(" "),
+  );
 
   return (
     <section className="diagram-card">
@@ -94,8 +103,15 @@ export default function DiagramCard({
           y2={zeroY}
           className="diagram-baseline"
         />
-        {points && (
-          <polyline points={points} fill="none" className="diagram-curve" />
+        {polylines.map((points, index) =>
+          points ? (
+            <polyline
+              key={series[index].offset}
+              points={points}
+              fill="none"
+              className="diagram-curve"
+            />
+          ) : null,
         )}
       </svg>
     </section>

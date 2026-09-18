@@ -554,21 +554,10 @@ body {
   fill: none;
 }
 
-.diagram-peak-dot {
-  fill: var(--strukt-color-accent-primary);
-  stroke: none;
-}
-
-.diagram-peak-label,
 .diagram-value,
 .diagram-member-label {
   font-family: var(--strukt-font-numeral);
   stroke: none;
-}
-
-.diagram-peak-label {
-  fill: var(--strukt-color-accent-primary);
-  font-weight: 600;
 }
 
 .diagram-value {

@@ -1,7 +1,7 @@
 "use client";
 
 import { projectDiagrams, type Point } from "@/engine/diagramGeometry";
-import type { DiagramKind, DiagramPeak, ElementDiagram } from "@/engine/diagrams";
+import type { DiagramKind, ElementDiagram } from "@/engine/diagrams";
 import type { StructuralElement, StructuralNode } from "@/engine/types";
 import { elementLabel } from "@/utils/labels";
 
@@ -37,7 +37,6 @@ interface DiagramViewProps {
   nodes: StructuralNode[];
   elements: StructuralElement[];
   diagrams: ElementDiagram[];
-  peaks: { max: DiagramPeak | null; min: DiagramPeak | null };
   /** Formats a value with its unit, in the user's unit system. */
   format: (value: number) => string;
 }
@@ -58,7 +57,6 @@ export default function DiagramView({
   nodes,
   elements,
   diagrams,
-  peaks,
   format,
 }: DiagramViewProps) {
   const projected = projectDiagrams(nodes, elements, diagrams, kind);
@@ -73,25 +71,13 @@ export default function DiagramView({
   // scale with the structure instead of needing a second coordinate system.
   const unit = extent / 100;
 
-  /** Where a peak sits on the drawing, by the sample that produced it. */
-  const locate = (peak: DiagramPeak | null) => {
-    if (!peak) return null;
-    const member = projected.members.find((m) => m.elementId === peak.elementId);
-    const diagram = diagrams.find((d) => d.elementId === peak.elementId);
-    if (!member || !diagram || member.ordinate.length === 0) return null;
-    const index = diagram[kind].findIndex(
-      (sample) => sample.x === peak.at && sample.value === peak.value,
-    );
-    const point = index < 0 ? null : member.ordinate[index];
-    return point ? { point, peak } : null;
-  };
-
-  const marked = [locate(peaks.max), locate(peaks.min)].filter(
-    (entry): entry is { point: Point; peak: DiagramPeak } => entry !== null,
-  );
-  const largest = Math.max(
-    Math.abs(peaks.max?.value ?? 0),
-    Math.abs(peaks.min?.value ?? 0),
+  // The scale the end-value threshold is measured against. Read off the
+  // samples rather than taken from the reported peaks, so this stays a
+  // property of what is drawn.
+  const largest = diagrams.reduce(
+    (worst, diagram) =>
+      diagram[kind].reduce((m, sample) => Math.max(m, Math.abs(sample.value)), worst),
+    0,
   );
 
   return (
@@ -177,28 +163,6 @@ export default function DiagramView({
             ) : null,
           );
         })}
-
-        {/* The structure-wide peaks, marked where they actually occur rather
-            than named only in the text below. */}
-        {marked.map(({ point, peak }) => (
-          <g key={`p-${peak.elementId}-${peak.at}-${peak.value}`}>
-            <circle
-              cx={point.x}
-              cy={-point.y}
-              r={unit * 1.2}
-              className="diagram-peak-dot"
-            />
-            <text
-              className="diagram-peak-label"
-              x={point.x}
-              y={-point.y - unit * 3.6}
-              textAnchor="middle"
-              style={{ fontSize: `${unit * 4.4}px` }}
-            >
-              {format(peak.value)}
-            </text>
-          </g>
-        ))}
 
         {/* Member names, set off the member on the side the diagram is not
             drawn, so a label never lands on its own curve. */}

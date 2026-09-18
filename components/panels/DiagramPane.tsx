@@ -85,13 +85,6 @@ export default function DiagramPane({ kind }: DiagramPaneProps) {
           // never by an added colour.
           (value: number) => axialForceLabel(value, unitSystem);
 
-  const peaks =
-    kind === "moment"
-      ? diagrams.momentPeaks
-      : kind === "shear"
-        ? diagrams.shearPeaks
-        : diagrams.axialPeaks;
-
   return (
     <DiagramView
       kind={kind}
@@ -100,7 +93,6 @@ export default function DiagramPane({ kind }: DiagramPaneProps) {
       nodes={nodes}
       elements={elements}
       diagrams={diagrams.elements}
-      peaks={peaks}
       format={format}
     />
   );

@@ -67,12 +67,22 @@ describe("DiagramPane", () => {
     }
   });
 
-  it("marks the peak where it occurs and names its value", () => {
+  it("labels the joint moments, which is what a Frame is read for", () => {
+    seedPortalFrame();
+    render(<DiagramPane kind="moment" />);
+    // Both columns and both beam ends carry the same -22.48 kN·m at the
+    // joints; the fixed bases carry 11.19.
+    expect(screen.getAllByText("-22.5 kN·m").length).toBe(4);
+    expect(screen.getAllByText("11.2 kN·m").length).toBe(2);
+  });
+
+  it("carries no peak marker of its own, which collided with the end values", () => {
     seedPortalFrame();
     const { container } = render(<DiagramPane kind="moment" />);
-    // wL^2/8 - 22.48 = 22.52 kN·m sagging at the beam's midspan.
-    screen.getByText("22.5 kN·m");
-    expect(container.querySelectorAll("circle.diagram-peak-dot").length).toBe(2);
+    // A peak that falls on a member end sat exactly on top of that end's
+    // label. The peaks are reported in the results table below instead.
+    expect(container.querySelectorAll("circle.diagram-peak-dot").length).toBe(0);
+    expect(container.querySelectorAll(".diagram-peak-label").length).toBe(0);
   });
 
   it("names each member on the drawing", () => {

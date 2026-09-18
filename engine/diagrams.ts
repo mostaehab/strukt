@@ -1,4 +1,4 @@
-import { resolveElementLoad } from "./loadResolution";
+import { elementPointLoads, resolveElementLoad } from "./loadResolution";
 import type {
   ElementForce,
   Load,
@@ -27,6 +27,13 @@ import type {
  * "this side of the diagram does not exist" from "this side is small".
  */
 const NEGLIGIBLE = 1e-9;
+
+/**
+ * How close two stations must be, relative to the member's length, to count as
+ * the same place. Scale-free, so it means the same on a 0.5 m member and a
+ * 50 m one.
+ */
+const POSITION_TOLERANCE = 1e-9;
 
 /** Points sampled along a member, enough to render a parabola smoothly. */
 const SAMPLES_PER_ELEMENT = 21;
@@ -96,6 +103,27 @@ function geometryOf(
  * `V = dM/dx` holds by construction: both come from the same integration, so
  * the two diagrams can never disagree about where the moment turns over.
  */
+/** One point Load, resolved into the member's own frame. */
+interface LocalPointLoad {
+  /** Metres from the member's start. */
+  at: number;
+  /** Component along the member, newtons. */
+  along: number;
+  /** Component across the member, newtons. */
+  across: number;
+}
+
+/** A station to evaluate at, and which side of a step to read there. */
+interface Station {
+  x: number;
+  /**
+   * Whether a point Load sitting exactly at `x` counts as passed. A step in
+   * the shear needs both readings -- the value just before the load and just
+   * after -- or the diagram draws a ramp through a discontinuity that is real.
+   */
+  after: boolean;
+}
+
 export function sampleElement(
   element: StructuralElement,
   force: ElementForce,
@@ -109,33 +137,56 @@ export function sampleElement(
   const along = resolved.x * cos + resolved.y * sin;
   const across = -resolved.x * sin + resolved.y * cos;
 
+  const points: LocalPointLoad[] = elementPointLoads(loads, element.id)
+    .map((load) => ({
+      at: load.position,
+      along: load.magnitude * (load.direction[0] * cos + load.direction[1] * sin),
+      across:
+        load.magnitude * (-load.direction[0] * sin + load.direction[1] * cos),
+    }))
+    .sort((a, b) => a.at - b.at);
+
+  const epsilon = length * POSITION_TOLERANCE;
+  const passed = (station: Station, at: number) =>
+    station.after ? at <= station.x + epsilon : at < station.x - epsilon;
+
   const axial: DiagramSample[] = [];
   const shear: DiagramSample[] = [];
   const moment: DiagramSample[] = [];
 
-  const positions = samplePositions(length, across, force.shearStart);
+  for (const station of samplePositions(length, across, force.shearStart, points)) {
+    const { x } = station;
 
-  for (const x of positions) {
-    // Axial equilibrium of the segment beyond x: the end action plus whatever
-    // the distributed load adds over the remaining length.
-    axial.push({ x, value: force.axial + along * (length - x) });
-
-    if (structureType === "TRUSS") {
-      // A Truss member carries axial force only -- no bending to report, and
-      // saying so explicitly beats leaving the arrays empty.
-      shear.push({ x, value: 0 });
-      moment.push({ x, value: 0 });
-      continue;
+    // Axial equilibrium of the segment beyond x: the end action, whatever the
+    // distributed load adds over the remaining length, and any point Load
+    // still ahead of the cut.
+    let ahead = 0;
+    for (const point of points) {
+      if (!passed(station, point.at)) ahead += point.along;
     }
+    axial.push({ x, value: force.axial + along * (length - x) + ahead });
 
     // Moments about the cut, taking the segment from the start Node to x: the
-    // start moment acts as a couple, the start shear at distance x, and the
-    // distributed load's resultant at x/2. Reported so that dM/dx = V, which is
-    // the convention a student's own diagrams follow.
-    shear.push({ x, value: force.shearStart + across * x });
+    // start moment acts as a couple, the start shear at distance x, the
+    // distributed load's resultant at x/2, and each passed point Load at its
+    // own lever arm. Reported so that dM/dx = V, which is the convention a
+    // student's own diagrams follow.
+    let stepShear = 0;
+    let stepMoment = 0;
+    for (const point of points) {
+      if (!passed(station, point.at)) continue;
+      stepShear += point.across;
+      stepMoment += point.across * (x - point.at);
+    }
+
+    shear.push({ x, value: force.shearStart + across * x + stepShear });
     moment.push({
       x,
-      value: -force.momentStart + force.shearStart * x + (across * x * x) / 2,
+      value:
+        -force.momentStart +
+        force.shearStart * x +
+        (across * x * x) / 2 +
+        stepMoment,
     });
   }
 
@@ -143,27 +194,63 @@ export function sampleElement(
 }
 
 /**
- * Even sampling, plus the point where the shear crosses zero.
+ * Even sampling, both sides of every point Load, and every shear zero.
  *
- * That crossing is where the moment turns over, so without it the reported
- * peak would be the nearest sample rather than the true maximum -- off by
- * however coarse the sampling happens to be, and wrong in exactly the place a
- * student is looking.
+ * The zero crossing is where the moment turns over, so without it the reported
+ * peak would be the nearest sample rather than the true maximum. It is solved
+ * segment by segment because a point Load steps the shear: a single crossing
+ * derived from the member's end values would be wrong wherever one exists, and
+ * a member can have a crossing in more than one segment.
  */
 function samplePositions(
   length: number,
   across: number,
   shearStart: number,
-): number[] {
-  const positions: number[] = [];
+  points: LocalPointLoad[],
+): Station[] {
+  const epsilon = length * POSITION_TOLERANCE;
+  const interior = points
+    .map((point) => point.at)
+    .filter((at) => at > epsilon && at < length - epsilon);
+
+  const stations: Station[] = [];
   for (let i = 0; i < SAMPLES_PER_ELEMENT; i += 1) {
-    positions.push((length * i) / (SAMPLES_PER_ELEMENT - 1));
+    const x = (length * i) / (SAMPLES_PER_ELEMENT - 1);
+    // Skipped where a point Load already contributes its own pair, so a
+    // station never appears three times.
+    if (interior.some((at) => Math.abs(at - x) <= epsilon)) continue;
+    stations.push({ x, after: true });
   }
+
+  for (const at of interior) {
+    stations.push({ x: at, after: false });
+    stations.push({ x: at, after: true });
+  }
+
   if (across !== 0) {
-    const stationary = -shearStart / across;
-    if (stationary > 0 && stationary < length) positions.push(stationary);
+    const breaks = [0, ...interior, length];
+    // Point Loads already behind the start of the current segment.
+    let stepped = 0;
+    for (let i = 0; i < breaks.length - 1; i += 1) {
+      const from = breaks[i];
+      const to = breaks[i + 1];
+      if (i > 0) {
+        for (const point of points) {
+          if (Math.abs(point.at - from) <= epsilon) stepped += point.across;
+        }
+      }
+      const crossing = -(shearStart + stepped) / across;
+      if (crossing > from && crossing < to) {
+        stations.push({ x: crossing, after: true });
+      }
+    }
   }
-  return positions.sort((a, b) => a - b);
+
+  // Ties resolve left-limit first, so a step is drawn in the direction the
+  // member is read rather than backwards.
+  return stations.sort((a, b) =>
+    a.x === b.x ? Number(a.after) - Number(b.after) : a.x - b.x,
+  );
 }
 
 /**

@@ -49,7 +49,13 @@ export default function Home() {
 
   const elements = useStructureStore((s) => s.elements);
   const results = useStructureStore((s) => s.results);
-  const structureType = useStructureStore((s) => s.type);
+  // A Truss bends only where a Load lands between its joints; a Frame always
+  // can. Either way the member Loads are what decide it.
+  const hasBending = useStructureStore(
+    (s) =>
+      s.type !== "TRUSS" ||
+      s.loads.some((load) => load.target.type === "element"),
+  );
   // A primitive selector, not the whole `nodes` array: dragging a Node changes
   // that array on every pointer move, and the shell only cares whether the
   // selected id still exists.
@@ -84,7 +90,7 @@ export default function Home() {
     setLastResults(results);
     // Back to the model when an edit invalidates the answer: a diagram of a
     // structure that no longer exists is worse than no diagram.
-    setView(results ? (structureType === "TRUSS" ? "axial" : "moment") : "MODEL");
+    setView(results ? (hasBending ? "moment" : "axial") : "MODEL");
   }
 
   // Any delete path (the cascade in deleteNode, a future clear/undo/load) can
@@ -190,7 +196,7 @@ export default function Home() {
       <ViewSwitch
         view={view}
         onViewChange={setView}
-        isTruss={structureType === "TRUSS"}
+        hasBending={hasBending}
         solved={results !== null}
       />
       <SolveBar />

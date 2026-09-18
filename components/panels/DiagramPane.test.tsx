@@ -127,16 +127,16 @@ describe("DiagramPane", () => {
 });
 
 describe("ViewSwitch", () => {
-  it("offers no BMD or SFD for a Truss", () => {
-    // FR-12/FR-13 scope both to a Frame or Beam. Offering them disabled would
-    // imply a Solve could fill them in.
-    expect(viewsFor(true)).toEqual(["MODEL", "axial"]);
-    expect(viewsFor(false)).toEqual(["MODEL", "moment", "shear", "axial"]);
+  it("offers a BMD and SFD only where there is bending to show", () => {
+    // A Truss loaded at its joints alone has none; load a member between two
+    // joints and it bends as a simply supported beam and has both.
+    expect(viewsFor(false)).toEqual(["MODEL", "axial"]);
+    expect(viewsFor(true)).toEqual(["MODEL", "moment", "shear", "axial"]);
   });
 
   it("disables the diagrams until a Solve succeeds, but still shows them", () => {
     render(
-      <ViewSwitch view="MODEL" onViewChange={() => {}} isTruss={false} solved={false} />,
+      <ViewSwitch view="MODEL" onViewChange={() => {}} hasBending solved={false} />,
     );
     // Disabled, not absent: the diagrams are visibly something this structure
     // will have once it solves.
@@ -148,7 +148,7 @@ describe("ViewSwitch", () => {
 
   it("enables the diagrams once solved and marks the active one", () => {
     render(
-      <ViewSwitch view="moment" onViewChange={() => {}} isTruss={false} solved />,
+      <ViewSwitch view="moment" onViewChange={() => {}} hasBending solved />,
     );
     const bmd = screen.getByRole("radio", { name: "Bending moment diagram" });
     expect(bmd.hasAttribute("disabled")).toBe(false);

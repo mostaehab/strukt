@@ -57,9 +57,9 @@ function hasTarget(load: Load, state: StructureState): boolean {
  * than written, so the prior value stands and a sibling's valid edit still
  * lands. Returns null when nothing in the patch was usable.
  *
- * Only `magnitude` and `direction` are read, whatever else a caller passes:
- * `id`, `kind` and `target` are immutable, and spreading the patch would let
- * an untyped caller rewrite them past every invariant here.
+ * Only `magnitude`, `direction` and `position` are read, whatever else a
+ * caller passes: `id`, `kind` and `target` are immutable, and spreading the
+ * patch would let an untyped caller rewrite them past every invariant here.
  */
 function applyLoadUpdate(load: Load, patch: LoadPatch): Load | null {
   let next = load;
@@ -72,6 +72,18 @@ function applyLoadUpdate(load: Load, patch: LoadPatch): Load | null {
     // must not stay reachable from store state.
     const direction = normalizeDirection(patch.direction);
     if (direction) next = { ...next, direction };
+  }
+  // Only a point Load has a station, and only a non-negative finite one is
+  // storable. Whether it actually lands on the member is the solver's call --
+  // it is the only layer that knows the member's length, and a Node dragged
+  // later can invalidate a position that was fine when it was written.
+  if (
+    patch.position !== undefined &&
+    next.kind === "point" &&
+    Number.isFinite(patch.position) &&
+    patch.position >= 0
+  ) {
+    next = { ...next, position: patch.position };
   }
 
   return next === load ? null : next;
@@ -253,6 +265,15 @@ const useStructureStore = create<StructureState>((set, get) => ({
       !isStorableMagnitude(load.magnitude) ||
       direction === null ||
       !hasTarget(load, state)
+    ) {
+      return false;
+    }
+    // A station off the front of its own member is never storable. Past the
+    // far end is left to the solver, which is the only layer that knows how
+    // long the member is.
+    if (
+      load.kind === "point" &&
+      (!Number.isFinite(load.position) || load.position < 0)
     ) {
       return false;
     }

@@ -88,6 +88,11 @@ export default function ResultsArea({ isBeamPreset }: ResultsAreaProps) {
   // reading. What stays here is what a student writes down: peak values with
   // their locations, the Reactions, and a Truss's member forces.
   const isTruss = structureType === "TRUSS";
+  // Reported when the diagram exists, not by Structure Type: a Truss loaded
+  // only at its joints has no bending anywhere, but one carrying a Load
+  // between two joints bends as a simply supported beam and has both.
+  const hasBending =
+    !isTruss || loads.some((load) => load.target.type === "element");
 
   const moment = diagrams.momentPeaks;
   const shear = diagrams.shearPeaks;
@@ -127,14 +132,14 @@ export default function ResultsArea({ isBeamPreset }: ResultsAreaProps) {
               </tr>
             </thead>
             <tbody>
-              {!isTruss && (
+              {hasBending && (
                 <tr>
                   <th scope="row">BMD</th>
                   <td>{peakLabel(moment.max, momentText, elementName, distanceText)}</td>
                   <td>{peakLabel(moment.min, momentText, elementName, distanceText)}</td>
                 </tr>
               )}
-              {!isTruss && (
+              {hasBending && (
                 <tr>
                   <th scope="row">SFD</th>
                   <td>{peakLabel(shear.max, forceText, elementName, distanceText)}</td>

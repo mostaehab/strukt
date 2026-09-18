@@ -11,7 +11,7 @@ export interface StructuralNode {
   support: Support;
 }
 
-export type LoadKind = "concentrated" | "udl";
+export type LoadKind = "concentrated" | "udl" | "point";
 
 /**
  * What a Load is applied to. Discriminated on `type` so a Load can never
@@ -63,6 +63,27 @@ export interface DistributedLoad extends LoadCommon {
 }
 
 /**
+ * A point force applied along an Element, away from either end -- newtons.
+ *
+ * Not the same thing as a concentrated Load on a Node, and not replaceable by
+ * one. On a Truss, splitting a member to put a Node under the load introduces
+ * a pin mid-member, which turns the chord into a two-bar mechanism -- the
+ * structure stops being solvable rather than gaining a load point. So a load
+ * hung between two joints has to be a load *on the member*.
+ */
+export interface ElementPointLoad extends LoadCommon {
+  kind: "point";
+  target: ElementLoadTarget;
+  /**
+   * Metres from the Element's start Node, along the member. Stored in metres
+   * rather than as a fraction because that is how a problem states it ("2 m
+   * from A"); a Node moved afterwards can leave it past the end, which the
+   * solver reports rather than silently clamping.
+   */
+  position: number;
+}
+
+/**
  * A first-class Load (AD-10), replacing the scalar per-Node force and moment
  * fields `StructuralNode` used to carry. Multiple Loads may target the same
  * Node or Element -- each is its own list entry, never accumulated into a
@@ -79,7 +100,7 @@ export interface DistributedLoad extends LoadCommon {
  * moment field here and none is reserved. `NodeResult.rmz` is the *output*
  * reaction moment and is unrelated.
  */
-export type Load = ConcentratedLoad | DistributedLoad;
+export type Load = ConcentratedLoad | DistributedLoad | ElementPointLoad;
 
 /**
  * The only fields an applied Load may change. `id`, `kind` and `target` are
@@ -90,6 +111,8 @@ export type Load = ConcentratedLoad | DistributedLoad;
 export interface LoadPatch {
   magnitude?: number;
   direction?: readonly [number, number];
+  /** Only meaningful on a point Load; ignored on the other kinds. */
+  position?: number;
 }
 
 export interface StructuralElement {
@@ -140,7 +163,7 @@ export type SolveErrorCode =
   | "NOTHING_TO_ANALYZE"
   | "ELEMENT_NO_MATERIAL"
   | "ELEMENT_NO_SECTION"
-  | "ELEMENT_TRUSS_UDL"
+  | "LOAD_OFF_ELEMENT"
   | "NODE_UNRESTRAINED"
   | "COMPONENT_UNRESTRAINED"
   | "SINGULAR_SYSTEM";

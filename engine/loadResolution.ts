@@ -1,4 +1,4 @@
-import type { Load } from "./types";
+import type { ElementPointLoad, Load } from "./types";
 
 /**
  * Resolved force components in the global frame -- positive x rightward,
@@ -61,6 +61,27 @@ export function resolveElementLoad(
   return sumLoads(
     loads,
     (load) =>
-      load.target.type === "element" && load.target.elementId === elementId,
+      load.kind === "udl" &&
+      load.target.type === "element" &&
+      load.target.elementId === elementId,
+  );
+}
+
+/**
+ * The point Loads applied along one Element, in the order they were added.
+ *
+ * Kept separate from `resolveElementLoad` rather than summed with it: a UDL is
+ * newtons per metre and a point Load is newtons, so adding them would be a
+ * units error that happens to typecheck. They also act differently -- a point
+ * Load puts a step in the shear diagram at one station, which a resultant
+ * cannot express.
+ */
+export function elementPointLoads(
+  loads: Load[],
+  elementId: string,
+): ElementPointLoad[] {
+  return loads.filter(
+    (load): load is ElementPointLoad =>
+      load.kind === "point" && load.target.elementId === elementId,
   );
 }

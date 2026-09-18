@@ -2,6 +2,7 @@ import type {
   ConcentratedLoad,
   DistributedLoad,
   ElementLoadTarget,
+  ElementPointLoad,
   Load,
   LoadKind,
   LoadTarget,
@@ -70,14 +71,35 @@ export function createLoad(
 ): DistributedLoad;
 export function createLoad(
   id: string,
+  kind: "point",
+  target: ElementLoadTarget,
+  magnitude: number,
+  direction: readonly [number, number],
+  position: number,
+): ElementPointLoad;
+export function createLoad(
+  id: string,
   kind: LoadKind,
   target: LoadTarget,
   magnitude: number,
   direction: readonly [number, number],
+  position?: number,
 ): Load {
   const copied: [number, number] = [direction[0], direction[1]];
-  return target.type === "node"
-    ? { id, kind: "concentrated", target, magnitude, direction: copied }
+  if (target.type === "node") {
+    return { id, kind: "concentrated", target, magnitude, direction: copied };
+  }
+  // Branching on `kind` here, not on the target: both Element-targeted kinds
+  // share a target shape, so the target alone can no longer tell them apart.
+  return kind === "point"
+    ? {
+        id,
+        kind: "point",
+        target,
+        magnitude,
+        direction: copied,
+        position: position ?? 0,
+      }
     : { id, kind: "udl", target, magnitude, direction: copied };
 }
 

@@ -27,6 +27,8 @@ import {
   inertiaToDisplay,
   inertiaToStore,
   inertiaUnit,
+  lengthToStore,
+  lengthUnit,
   loadUnitLabel,
 } from "@/utils/units";
 import { elementLabel as labelForElement, nodeLabel } from "@/utils/labels";
@@ -64,6 +66,13 @@ const MATERIAL_OPTIONS = Object.entries(MATERIAL_LABELS) as [
 const UNASSIGNED = "";
 const UNASSIGNED_LABEL = "(none assigned)";
 const CROSS_SECTION_HINT_ID = "cross-section-hint";
+
+/** What each Load kind is called in the picker. */
+const LOAD_KIND_LABELS: Record<LoadKind, string> = {
+  concentrated: "Point load",
+  udl: "Distributed (UDL)",
+  point: "Point load along member",
+};
 
 // The four directions a Load can be entered in, labelled with U+2212 MINUS
 // SIGN rather than a hyphen: these read as signed axes, not as hyphenated
@@ -308,7 +317,12 @@ function NumericField({
 interface LoadBlockProps {
   /** Field label, e.g. `Load (concentrated)` -- the mockup's caption. */
   legend: string;
-  kind: LoadKind;
+  /**
+   * The kinds this entity can take. One means no picker; an Element takes
+   * both a distributed load and a point load along its length, so it gets a
+   * choice.
+   */
+  kinds: LoadKind[];
   /**
    * Builds the Load to apply. Supplied by the section rather than assembled
    * here out of a kind and a target, so the one legal pairing of the two is
@@ -318,6 +332,8 @@ interface LoadBlockProps {
     id: string,
     magnitude: number,
     direction: readonly [number, number],
+    kind: LoadKind,
+    position: number,
   ) => Load;
   /** `Node N1` / `Element E1` -- what the rejection and delete controls name. */
   entityLabel: string;
@@ -346,7 +362,7 @@ interface LoadBlockProps {
  */
 function LoadBlock({
   legend,
-  kind,
+  kinds,
   newLoad,
   entityLabel,
   loads,
@@ -355,12 +371,17 @@ function LoadBlock({
   const addLoad = useStructureStore((s) => s.addLoad);
   const deleteLoad = useStructureStore((s) => s.deleteLoad);
   const [axis, setAxis] = useState<AxisDirection>(DEFAULT_LOAD_AXIS);
+  const [kind, setKind] = useState<LoadKind>(kinds[0]);
   const [applyError, setApplyError] = useState("");
   const [announcement, setAnnouncement] = useState("");
   const [resetSignal, setResetSignal] = useState(0);
   // The last *completed* entry. Null again from the first keystroke after it,
   // so Apply can never apply a value the field no longer shows.
   const draftRef = useRef<number | null>(null);
+  // Defaults to the start Node rather than staying empty: a point Load with no
+  // station is not a thing, and 0 is the one value that is always on the
+  // member whatever its length.
+  const positionRef = useRef<number>(0);
   const listRef = useRef<HTMLUListElement | null>(null);
   // A ref rather than state: this is a one-shot instruction consumed by the
   // very next commit, and storing it in state would mean setting state from
@@ -401,6 +422,8 @@ function LoadBlock({
           crypto.randomUUID(),
           forceToStore(kilonewtons, unitSystem),
           AXIS_DIRECTIONS[axis],
+          kind,
+          lengthToStore(positionRef.current, unitSystem),
         ),
       )
     ) {
@@ -439,6 +462,23 @@ function LoadBlock({
     <fieldset className="load-block">
       <legend>{legend}</legend>
 
+      {kinds.length > 1 && (
+        <div className="field">
+          <label htmlFor={`${idPrefix}-kind`}>Type</label>
+          <select
+            id={`${idPrefix}-kind`}
+            value={kind}
+            onChange={(event) => setKind(event.target.value as LoadKind)}
+          >
+            {kinds.map((option) => (
+              <option key={option} value={option}>
+                {LOAD_KIND_LABELS[option]}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
       <NumericField
         id={`${idPrefix}-magnitude`}
         label={`Magnitude (${unit})`}
@@ -472,6 +512,24 @@ function LoadBlock({
           Global axes: +y is up, −y is down.
         </p>
       </div>
+
+      {/* A point Load needs to say where along the member it acts. On a Truss
+          this is the only way to express one at all: adding a Node under the
+          load would put a pin mid-member and turn the chord into a mechanism. */}
+      {kind === "point" && (
+        <NumericField
+          key={`${idPrefix}-position-field`}
+          id={`${idPrefix}-position`}
+          label={`Distance from start (${lengthUnit(unitSystem)})`}
+          fieldName="distance"
+          entityLabel={`Load on ${entityLabel}`}
+          value={0}
+          onCommit={(value) => {
+            positionRef.current = value ?? 0;
+          }}
+          resetSignal={resetSignal}
+        />
+      )}
 
       <button
         type="button"
@@ -641,7 +699,7 @@ export default function PropertiesPanel({
             <LoadBlock
               key={`node-load-${selectedNode.id}`}
               legend="Load (concentrated)"
-              kind="concentrated"
+              kinds={["concentrated"]}
               newLoad={(id, magnitude, direction) =>
                 createLoad(
                   id,
@@ -771,15 +829,24 @@ export default function PropertiesPanel({
             <LoadBlock
               key={`element-load-${selectedElement.id}`}
               legend="Load (UDL)"
-              kind="udl"
-              newLoad={(id, magnitude, direction) =>
-                createLoad(
-                  id,
-                  "udl",
-                  elementTarget(selectedElement.id),
-                  magnitude,
-                  direction,
-                )
+              kinds={["udl", "point"]}
+              newLoad={(id, magnitude, direction, loadKind, position) =>
+                loadKind === "point"
+                  ? createLoad(
+                      id,
+                      "point",
+                      elementTarget(selectedElement.id),
+                      magnitude,
+                      direction,
+                      position,
+                    )
+                  : createLoad(
+                      id,
+                      "udl",
+                      elementTarget(selectedElement.id),
+                      magnitude,
+                      direction,
+                    )
               }
               entityLabel={`Element ${elementLabel}`}
               loads={elementLoads}

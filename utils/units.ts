@@ -148,6 +148,17 @@ export function lengthToDisplay(metres: number, system: UnitSystem): number {
   return system === "IMPERIAL" ? metres / METRES_PER_FOOT : metres;
 }
 
+/**
+ * Write-through: a display length typed into a field, metres into the store.
+ *
+ * The station of a point Load along a member is the only length a user enters
+ * directly -- Node coordinates come from the canvas grid, which is metric by
+ * construction.
+ */
+export function lengthToStore(value: number, system: UnitSystem): number {
+  return system === "IMPERIAL" ? value * METRES_PER_FOOT : value;
+}
+
 export function areaToDisplay(squareMetres: number, system: UnitSystem): number {
   return system === "IMPERIAL"
     ? squareMetres / SQUARE_METRES_PER_SQUARE_INCH

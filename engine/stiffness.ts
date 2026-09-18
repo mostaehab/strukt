@@ -1,7 +1,7 @@
 import { lusolve } from "mathjs";
 import { DOFS, MATERIALS, SUPPORTS } from "./constants";
 import { checkStability } from "./stability";
-import { validateElements } from "./validation";
+import { validateElements, validateLoadPositions } from "./validation";
 import type {
   ElementForce,
   EnginePayload,
@@ -190,15 +190,73 @@ export function udlEquivalentLoads(
   const across = intensity * (-directionX * sin + directionY * cos);
 
   if (structureType === "TRUSS") {
-    // Unreachable in practice -- validation blocks a UDL on a Truss member --
-    // but lumping axially is the only meaning a bending-free member could give it.
-    return [(along * length) / 2, (across * length) / 2, (along * length) / 2, (across * length) / 2];
+    // Pin-ended, so no end moments exist to make equivalent: the joints take
+    // the simple-beam reactions, half each for a uniform load. This is exact
+    // rather than a lumping approximation -- a pinned member transmits
+    // precisely those reactions and nothing else.
+    return [
+      (along * length) / 2,
+      (across * length) / 2,
+      (along * length) / 2,
+      (across * length) / 2,
+    ];
   }
 
   const shear = (across * length) / 2;
   const moment = (across * length ** 2) / 12;
   const axial = (along * length) / 2;
   return [axial, shear, moment, axial, shear, -moment];
+}
+
+/**
+ * Work-equivalent nodal loads for a point force applied along a member.
+ *
+ * On a Truss the member is pinned at both ends, so the joints take the simple
+ * beam reactions `P b/L` and `P a/L` and nothing else -- exact, not a lumping
+ * approximation. On a Frame the ends are continuous, so the standard
+ * fixed-end forces apply and the equivalent loads are their negatives, in the
+ * same sense as `udlEquivalentLoads`.
+ *
+ * `position` is measured from the start Node and is assumed to lie on the
+ * member; `validateLoadPositions` refuses one that does not before assembly
+ * reaches here.
+ */
+export function pointEquivalentLoads(
+  magnitude: number,
+  directionX: number,
+  directionY: number,
+  position: number,
+  geometry: ElementGeometry,
+  structureType: StructureType,
+): number[] {
+  const { length, cos, sin } = geometry;
+  const along = magnitude * (directionX * cos + directionY * sin);
+  const across = magnitude * (-directionX * sin + directionY * cos);
+
+  const a = position;
+  const b = length - position;
+
+  if (structureType === "TRUSS") {
+    return [(along * b) / length, (across * b) / length, (along * a) / length, (across * a) / length];
+  }
+
+  // Standard fixed-end forces for a point load, carried as equivalent nodal
+  // loads. At midspan these reduce to P/2 shears and the familiar PL/8
+  // moments, which is what the tests check them against.
+  const l = length;
+  const shearStart = (across * b ** 2 * (l + 2 * a)) / l ** 3;
+  const shearEnd = (across * a ** 2 * (l + 2 * b)) / l ** 3;
+  const momentStart = (across * a * b ** 2) / l ** 2;
+  const momentEnd = (-across * a ** 2 * b) / l ** 2;
+
+  return [
+    (along * b) / l,
+    shearStart,
+    momentStart,
+    (along * a) / l,
+    shearEnd,
+    momentEnd,
+  ];
 }
 
 function dofCount(structureType: StructureType): number {
@@ -238,12 +296,14 @@ export function solve(payload: EnginePayload): SolveOutcome {
   );
   if (stabilityErrors.length > 0) return { ok: false, errors: stabilityErrors };
 
-  const validationErrors = validateElements(
-    elements,
-    loads,
-    structureType,
-    elementLabel,
-  );
+  const validationErrors = [
+    ...validateElements(elements, structureType, elementLabel),
+    // Metres, to one decimal: the engine has no unit system, and this is the
+    // only message that has to quote a length.
+    ...validateLoadPositions(loads, elements, nodes, elementLabel, (metres) =>
+      `${metres.toFixed(1)} m`,
+    ),
+  ];
   if (validationErrors.length > 0) {
     return { ok: false, errors: validationErrors };
   }
@@ -319,13 +379,23 @@ export function solve(payload: EnginePayload): SolveOutcome {
     const geometry = element ? geometries.get(element.id) : undefined;
     if (!element || !geometry) continue;
 
-    const local = udlEquivalentLoads(
-      load.magnitude,
-      load.direction[0],
-      load.direction[1],
-      geometry,
-      structureType,
-    );
+    const local =
+      load.kind === "point"
+        ? pointEquivalentLoads(
+            load.magnitude,
+            load.direction[0],
+            load.direction[1],
+            load.position,
+            geometry,
+            structureType,
+          )
+        : udlEquivalentLoads(
+            load.magnitude,
+            load.direction[0],
+            load.direction[1],
+            geometry,
+            structureType,
+          );
     const previous = equivalentLocal.get(element.id);
     equivalentLocal.set(
       element.id,
@@ -484,8 +554,15 @@ export function solve(payload: EnginePayload): SolveOutcome {
       elementForces[element.id] = {
         // Positive in tension: the force pulling the start Node toward the end.
         axial: endForces[2],
-        shearStart: 0,
-        shearEnd: 0,
+        // A pin-jointed member loaded between its joints is a simply supported
+        // beam: it carries the transverse load in shear and bending even
+        // though the joints transmit no moment. These end shears fall out of
+        // `k d - equivalent` on their own, because the axial-only k
+        // contributes nothing transverse and what is left is exactly the
+        // simple-beam reaction.
+        shearStart: endForces[1],
+        shearEnd: endForces[3],
+        // Zero by definition, not by omission: a pin cannot transmit one.
         momentStart: 0,
         momentEnd: 0,
       };

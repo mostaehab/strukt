@@ -4,6 +4,7 @@ import { projectDiagrams, type Point } from "@/engine/diagramGeometry";
 import type { DiagramKind, ElementDiagram } from "@/engine/diagrams";
 import type { StructuralElement, StructuralNode } from "@/engine/types";
 import { elementLabel } from "@/utils/labels";
+import { layoutLabels, type LabelCandidate } from "@/utils/labelLayout";
 
 /**
  * A diagram at full workspace size, drawn on the structure's own geometry.
@@ -80,6 +81,65 @@ export default function DiagramView({
     0,
   );
 
+  const candidates: LabelCandidate[] = [];
+
+  for (const member of projected.members) {
+    const diagram = diagrams.find((d) => d.elementId === member.elementId);
+    const dx = member.end.x - member.start.x;
+    const dy = member.end.y - member.start.y;
+    const span = Math.hypot(dx, dy) || 1;
+
+    if (diagram && member.ordinate.length > 0 && largest > 0) {
+      const samples = diagram[kind];
+      const ends = [
+        { point: member.ordinate[0], value: samples[0].value, at: "start" },
+        {
+          point: member.ordinate[member.ordinate.length - 1],
+          value: samples[samples.length - 1].value,
+          at: "end",
+        },
+      ];
+      for (const end of ends) {
+        if (Math.abs(end.value) / largest <= LABEL_THRESHOLD) continue;
+        // Which side of the member the ordinate put this label on, so a label
+        // that has to give way moves further out rather than back across its
+        // own curve.
+        const side =
+          Math.sign(
+            (end.point.x - member.start.x) * -dy +
+              (end.point.y - member.start.y) * dx,
+          ) || 1;
+        candidates.push({
+          id: `value-${member.elementId}-${end.at}`,
+          x: end.point.x,
+          y: -end.point.y - unit * 1.4,
+          text: format(end.value),
+          fontSize: unit * 3.4,
+          pushX: (-dy / span) * side,
+          pushY: -((dx / span) * side),
+          priority: 0,
+        });
+      }
+    }
+
+    // Set on the side the diagram is not drawn, so a name never lands on its
+    // own curve. Lower priority than the values: a name is recoverable from
+    // position, a number is not.
+    const offset = kind === "moment" ? unit * 2.6 : -unit * 2.6;
+    candidates.push({
+      id: `name-${member.elementId}`,
+      x: (member.start.x + member.end.x) / 2 + (-dy / span) * offset,
+      y: -((member.start.y + member.end.y) / 2 + (dx / span) * offset),
+      text: elementLabel(elements, member.elementId),
+      fontSize: unit * 3.2,
+      pushX: (-dy / span) * Math.sign(offset),
+      pushY: -((dx / span) * Math.sign(offset)),
+      priority: 1,
+    });
+  }
+
+  const labels = layoutLabels(candidates);
+
   return (
     <div className="diagram-view">
       <svg
@@ -133,57 +193,26 @@ export default function DiagramView({
           </g>
         ))}
 
-        {/* Member end values. On a Frame these are the joint moments, which is
-            the number a student checks before anything else. */}
-        {projected.members.map((member) => {
-          const diagram = diagrams.find((d) => d.elementId === member.elementId);
-          if (!diagram || member.ordinate.length === 0 || largest === 0) {
-            return null;
-          }
-          const samples = diagram[kind];
-          const ends = [
-            { point: member.ordinate[0], value: samples[0].value },
-            {
-              point: member.ordinate[member.ordinate.length - 1],
-              value: samples[samples.length - 1].value,
-            },
-          ];
-          return ends.map((end, i) =>
-            Math.abs(end.value) / largest > LABEL_THRESHOLD ? (
-              <text
-                key={`v-${member.elementId}-${i}`}
-                className="diagram-value"
-                x={end.point.x}
-                y={-end.point.y - unit * 1.4}
-                textAnchor="middle"
-                style={{ fontSize: `${unit * 3.4}px` }}
-              >
-                {format(end.value)}
-              </text>
-            ) : null,
-          );
-        })}
-
-        {/* Member names, set off the member on the side the diagram is not
-            drawn, so a label never lands on its own curve. */}
-        {projected.members.map((member) => {
-          const dx = member.end.x - member.start.x;
-          const dy = member.end.y - member.start.y;
-          const length = Math.hypot(dx, dy) || 1;
-          const offset = kind === "moment" ? unit * 2.6 : -unit * 2.6;
-          return (
-            <text
-              key={`l-${member.elementId}`}
-              className="diagram-member-label"
-              x={(member.start.x + member.end.x) / 2 + (-dy / length) * offset}
-              y={-((member.start.y + member.end.y) / 2 + (dx / length) * offset)}
-              textAnchor="middle"
-              style={{ fontSize: `${unit * 3.2}px` }}
-            >
-              {elementLabel(elements, member.elementId)}
-            </text>
-          );
-        })}
+        {/* Every label goes through one layout pass. Placed by formula alone
+            they pile up exactly where the values matter -- two members meeting
+            at a joint each label the same point, and a symmetric frame
+            produces the same number four times. */}
+        {labels.map((label) => (
+          <text
+            key={label.id}
+            className={
+              label.id.startsWith("name-")
+                ? "diagram-member-label"
+                : "diagram-value"
+            }
+            x={label.x}
+            y={label.y}
+            textAnchor="middle"
+            style={{ fontSize: `${label.fontSize}px` }}
+          >
+            {label.text}
+          </text>
+        ))}
 
         {nodes.map((node) => (
           <circle

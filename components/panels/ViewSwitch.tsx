@@ -38,20 +38,28 @@ const DIAGRAM_OPTIONS: Record<DiagramKind, ViewOption> = {
 };
 
 /**
- * A Truss carries axial force only, so it offers no BMD or SFD -- FR-12 and
- * FR-13 both scope those to a Frame or Beam. Offering them disabled would
- * imply a Solve could fill them in.
+ * Which views this structure has, by whether the diagram exists at all.
+ *
+ * A Truss loaded only at its joints has no bending anywhere -- every member is
+ * a two-force member -- so a BMD and an SFD would be flat zero lines dressed
+ * up as results. Load a member between its joints and that stops being true:
+ * the member spans its two pins as a simply supported beam and has both.
+ *
+ * So the question is not "is this a Truss" but "is there any bending", which
+ * is also the honest reading of FR-12/FR-13 scoping them to a structure that
+ * has one.
  */
-export function viewsFor(isTruss: boolean): WorkspaceView[] {
-  return isTruss
-    ? ["MODEL", "axial"]
-    : ["MODEL", "moment", "shear", "axial"];
+export function viewsFor(hasBending: boolean): WorkspaceView[] {
+  return hasBending
+    ? ["MODEL", "moment", "shear", "axial"]
+    : ["MODEL", "axial"];
 }
 
 interface ViewSwitchProps {
   view: WorkspaceView;
   onViewChange: (view: WorkspaceView) => void;
-  isTruss: boolean;
+  /** Whether any member bends -- see `viewsFor`. */
+  hasBending: boolean;
   /** Diagrams are unavailable until a Solve succeeds. */
   solved: boolean;
 }
@@ -59,10 +67,10 @@ interface ViewSwitchProps {
 export default function ViewSwitch({
   view,
   onViewChange,
-  isTruss,
+  hasBending,
   solved,
 }: ViewSwitchProps) {
-  const options = viewsFor(isTruss).map((value) =>
+  const options = viewsFor(hasBending).map((value) =>
     value === "MODEL" ? MODEL_OPTION : DIAGRAM_OPTIONS[value],
   );
 

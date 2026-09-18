@@ -2,6 +2,7 @@ import type {
   Load,
   SolveError,
   StructuralElement,
+  StructuralNode,
   StructureType,
 } from "./types";
 
@@ -32,7 +33,6 @@ function isUsableProperty(value: number | null): value is number {
  */
 export function validateElements(
   elements: StructuralElement[],
-  loads: Load[],
   structureType: StructureType,
   label: (elementId: string) => string,
 ): SolveError[] {
@@ -64,18 +64,49 @@ export function validateElements(
       });
     }
 
-    if (structureType === "TRUSS") {
-      const carriesUdl = loads.some(
-        (load) =>
-          load.kind === "udl" && load.target.elementId === element.id,
-      );
-      if (carriesUdl) {
-        errors.push({
-          code: "ELEMENT_TRUSS_UDL",
-          message: `Can't solve: Element ${name} is a Truss member and can't carry a distributed load. Apply the Load to its end Nodes instead, or switch the Project to Frame.`,
-          elementId: element.id,
-        });
-      }
+  }
+
+  return errors;
+}
+
+/**
+ * Checks every point Load actually lands on the member it is applied to.
+ *
+ * A point Load stores its station in metres from the start Node, so dragging
+ * that Node can leave a Load hanging past the end of its own member. Clamping
+ * it silently would move a load a student placed deliberately, so this reports
+ * it instead and names the member and the length to fix it against.
+ */
+export function validateLoadPositions(
+  loads: Load[],
+  elements: StructuralElement[],
+  nodes: StructuralNode[],
+  label: (elementId: string) => string,
+  formatLength: (metres: number) => string,
+): SolveError[] {
+  const nodeById = new Map(nodes.map((node) => [node.id, node]));
+  const elementById = new Map(elements.map((element) => [element.id, element]));
+  const errors: SolveError[] = [];
+
+  for (const load of loads) {
+    if (load.kind !== "point") continue;
+    const element = elementById.get(load.target.elementId);
+    if (!element) continue;
+    const start = nodeById.get(element.startNode);
+    const end = nodeById.get(element.endNode);
+    if (!start || !end) continue;
+
+    const length = Math.hypot(end.x - start.x, end.y - start.y);
+    if (
+      !Number.isFinite(load.position) ||
+      load.position < 0 ||
+      load.position > length
+    ) {
+      errors.push({
+        code: "LOAD_OFF_ELEMENT",
+        message: `Can't solve: a Load on Element ${label(element.id)} sits ${formatLength(load.position)} along a member that is only ${formatLength(length)} long. Move it onto the member to continue.`,
+        elementId: element.id,
+      });
     }
   }
 

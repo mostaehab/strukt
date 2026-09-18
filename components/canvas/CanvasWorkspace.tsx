@@ -60,8 +60,15 @@ function stackIndexes(loads: Load[]): Map<string, number> {
   const indexes = new Map<string, number>();
   for (const load of loads) {
     const { target } = load;
+    // A point Load's station is part of its identity here: two at different
+    // places on one member are not a stack and must not be fanned apart, while
+    // two at the same station are and must be.
     const key =
-      target.type === "node" ? `n:${target.nodeId}` : `e:${target.elementId}`;
+      target.type === "node"
+        ? `n:${target.nodeId}`
+        : load.kind === "point"
+          ? `p:${target.elementId}:${load.position}`
+          : `e:${target.elementId}`;
     const index = seen.get(key) ?? 0;
     seen.set(key, index + 1);
     indexes.set(load.id, index);
@@ -366,6 +373,22 @@ export default function CanvasWorkspace({
           const start = nodes.find((n) => n.id === element.startNode);
           const end = nodes.find((n) => n.id === element.endNode);
           if (!start || !end) return null;
+          if (load.kind === "point") {
+            return (
+              <LoadGlyph
+                key={load.id}
+                kind="point"
+                start={[start.x, start.y]}
+                end={[end.x, end.y]}
+                position={load.position}
+                direction={load.direction}
+                color={COLORS.accent}
+                haloColor={COLORS.background}
+                label={loadLabel(load, unitSystem)}
+                stackIndex={stackIndex}
+              />
+            );
+          }
           return (
             <LoadGlyph
               key={load.id}

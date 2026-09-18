@@ -7,6 +7,7 @@ import LoadGlyph from "./LoadGlyph";
 import {
   LOAD_HEAD_HALO_SCALE,
   loadGlyphGeometry,
+  memberPointGlyphGeometry,
   udlGlyphGeometry,
 } from "./loadGlyphGeometry";
 import { LOAD_HALO_Z_OFFSET } from "./canvasConstants";
@@ -198,6 +199,61 @@ describe("LoadGlyph, concentrated", () => {
     expect(tuple(heads()[1].getAttribute("position"))).toEqual(
       glyph.head.position,
     );
+  });
+});
+
+describe("LoadGlyph, point Load along a member", () => {
+  function renderAt(position: number) {
+    return render(
+      <LoadGlyph
+        kind="point"
+        start={[0, 0]}
+        end={[10, 0]}
+        position={position}
+        direction={DOWN}
+        color={ACCENT}
+        haloColor={BACKGROUND}
+        label="20 kN"
+      />,
+    );
+  }
+
+  it("draws one arrow with its head at the station", () => {
+    renderAt(4);
+    const glyph = memberPointGlyphGeometry(0, 0, 10, 0, 4, DOWN);
+    // Head plus halo, and no more: this is one arrow, not a comb.
+    expect(heads()).toHaveLength(2);
+    expect(tuple(heads()[1].getAttribute("position"))).toEqual(
+      glyph.head.position,
+    );
+  });
+
+  it("marks the member at the station, as well as drawing the arrow", () => {
+    renderAt(4);
+    const glyph = memberPointGlyphGeometry(0, 0, 10, 0, 4, DOWN);
+    // The mark and the shaft: without the mark an angled arrow reads as
+    // pointing near the member rather than acting at one place on it.
+    expect(lines()).toHaveLength(2);
+    expect(lines()[0].dataset.points).toBe(
+      [glyph.tickStart.join(","), glyph.tickEnd.join(",")].join(" | "),
+    );
+  });
+
+  it("moves the whole glyph when the station moves", () => {
+    const { unmount } = renderAt(2);
+    const near = tuple(heads()[1].getAttribute("position"))[0];
+    unmount();
+    renderAt(8);
+    const far = tuple(heads()[1].getAttribute("position"))[0];
+    expect(near).toBeCloseTo(2, 10);
+    expect(far).toBeCloseTo(8, 10);
+  });
+
+  it("labels the magnitude in force units, not per-metre ones", () => {
+    renderAt(4);
+    // A point Load along a member is newtons, like a Node Load -- the unit is
+    // what tells it from the UDL it shares a target shape with.
+    screen.getByText("20 kN");
   });
 });
 

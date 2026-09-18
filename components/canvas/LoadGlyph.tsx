@@ -8,6 +8,7 @@ import {
   LOAD_HEAD_HALO_SCALE,
   LOAD_HEAD_VERTICES,
   loadGlyphGeometry,
+  memberPointGlyphGeometry,
   udlGlyphGeometry,
   type LoadArrow,
 } from "./loadGlyphGeometry";
@@ -108,6 +109,13 @@ type LoadGlyphProps = CommonProps &
   (
     | { kind: "concentrated"; target: [number, number] }
     | { kind: "udl"; start: [number, number]; end: [number, number] }
+    | {
+        kind: "point";
+        start: [number, number];
+        end: [number, number];
+        /** Metres from the start Node, along the member. */
+        position: number;
+      }
   );
 
 function ConcentratedGlyph({
@@ -130,6 +138,52 @@ function ConcentratedGlyph({
 
   return (
     <group>
+      <Arrow arrow={glyph} color={color} haloColor={haloColor} />
+      <LoadLabel position={glyph.labelPosition} label={label} />
+    </group>
+  );
+}
+
+function MemberPointGlyph({
+  start,
+  end,
+  position,
+  direction,
+  color,
+  haloColor,
+  label,
+  stackIndex = 0,
+}: CommonProps & {
+  start: [number, number];
+  end: [number, number];
+  position: number;
+}) {
+  const [startX, startY] = start;
+  const [endX, endY] = end;
+  const [dx, dy] = direction;
+  const glyph = useMemo(
+    () =>
+      memberPointGlyphGeometry(
+        startX,
+        startY,
+        endX,
+        endY,
+        position,
+        [dx, dy],
+        stackIndex,
+      ),
+    [startX, startY, endX, endY, position, dx, dy, stackIndex],
+  );
+
+  return (
+    <group>
+      {/* The station mark, drawn before the arrow so the head sits on top of
+          it rather than being cut by it. */}
+      <Line
+        points={[glyph.tickStart, glyph.tickEnd]}
+        color={color}
+        lineWidth={2}
+      />
       <Arrow arrow={glyph} color={color} haloColor={haloColor} />
       <LoadLabel position={glyph.labelPosition} label={label} />
     </group>
@@ -177,8 +231,9 @@ function UdlGlyph({
 
 /**
  * Renders a single Load in accent: a concentrated Load as one arrow with its
- * head on the Node, a UDL as a spine over the member with a row of arrows
- * dropping onto it -- the load glyphs of
+ * head on the Node, a point Load along a member as the same arrow at its
+ * station with a mark across the member there, a UDL as a spine over the
+ * member with a row of arrows dropping onto it -- the load glyphs of
  * `_bmad-output/planning-artifacts/ux-designs/ux-strukt-2026-08-30/mockups/key-canvas.html`
  * and the standard distributed-load notation respectively. Geometry comes from
  * ./loadGlyphGeometry, unit-tested without three.js.
@@ -189,9 +244,7 @@ function UdlGlyph({
  * without stealing its taps.
  */
 export default function LoadGlyph(props: LoadGlyphProps) {
-  return props.kind === "concentrated" ? (
-    <ConcentratedGlyph {...props} />
-  ) : (
-    <UdlGlyph {...props} />
-  );
+  if (props.kind === "concentrated") return <ConcentratedGlyph {...props} />;
+  if (props.kind === "point") return <MemberPointGlyph {...props} />;
+  return <UdlGlyph {...props} />;
 }

@@ -5,6 +5,7 @@ import {
   PIXELS_PER_WORLD_UNIT,
 } from "./canvasConstants";
 import {
+  memberPointGlyphGeometry,
   LOAD_HEAD_HALO_SCALE,
   LOAD_HEAD_LENGTH,
   LOAD_HEAD_VERTICES,
@@ -317,5 +318,62 @@ describe("udlGlyphGeometry", () => {
     for (const arrow of glyph.arrows) {
       expect(arrow.head.position.every(Number.isFinite)).toBe(true);
     }
+  });
+});
+
+describe("memberPointGlyphGeometry", () => {
+  // A 10-unit horizontal member from (0,0) to (10,0), load pushing down.
+  const at = (position: number) =>
+    memberPointGlyphGeometry(0, 0, 10, 0, position, [0, -1]);
+
+  it("puts the head at the station, not at either Node", () => {
+    const glyph = at(4);
+    expect(glyph.head.position[0]).toBeCloseTo(4, 10);
+    expect(glyph.head.position[1]).toBeCloseTo(0, 10);
+  });
+
+  it("places the station proportionally along an inclined member", () => {
+    // 3-4-5: a quarter of the way along a 5-unit member is (0.75, 1).
+    const glyph = memberPointGlyphGeometry(0, 0, 3, 4, 1.25, [0, -1]);
+    expect(glyph.head.position[0]).toBeCloseTo(0.75, 10);
+    expect(glyph.head.position[1]).toBeCloseTo(1, 10);
+  });
+
+  it("marks the station across the member, not across the arrow", () => {
+    const glyph = at(4);
+    // Horizontal member, so its cross-mark is vertical -- whichever way the
+    // Load happens to push.
+    expect(glyph.tickStart[0]).toBeCloseTo(4, 10);
+    expect(glyph.tickEnd[0]).toBeCloseTo(4, 10);
+    expect(glyph.tickStart[1]).toBeLessThan(glyph.tickEnd[1]);
+  });
+
+  it("keeps the mark across the member when the Load is not perpendicular", () => {
+    const glyph = memberPointGlyphGeometry(0, 0, 10, 0, 4, [1, 0]);
+    // Pushed along the member, the mark still runs across it.
+    expect(glyph.tickStart[0]).toBeCloseTo(4, 10);
+    expect(glyph.tickEnd[0]).toBeCloseTo(4, 10);
+  });
+
+  it("draws a stranded Load where it actually is, past the member's end", () => {
+    // A Node dragged shorter leaves the Load off the end. Clamping would hide
+    // that; the Solve error names it and the glyph has to agree.
+    const glyph = at(14);
+    expect(glyph.head.position[0]).toBeCloseTo(14, 10);
+  });
+
+  it("degrades to the start rather than NaN on a zero-length member", () => {
+    const glyph = memberPointGlyphGeometry(2, 3, 2, 3, 1, [0, -1]);
+    for (const value of [...glyph.head.position, ...glyph.tickStart, ...glyph.tickEnd]) {
+      expect(Number.isFinite(value)).toBe(true);
+    }
+    expect(glyph.head.position[0]).toBeCloseTo(2, 10);
+    expect(glyph.head.position[1]).toBeCloseTo(3, 10);
+  });
+
+  it("fans two Loads sharing a station so neither hides the other", () => {
+    const first = memberPointGlyphGeometry(0, 0, 10, 0, 4, [0, -1], 0);
+    const second = memberPointGlyphGeometry(0, 0, 10, 0, 4, [0, -1], 1);
+    expect(second.head.position[0]).not.toBeCloseTo(first.head.position[0], 6);
   });
 });

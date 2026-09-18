@@ -70,6 +70,17 @@ export const LOAD_UDL_MIN_ARROWS = 2;
 export const LOAD_UDL_MAX_ARROWS = 9;
 
 /**
+ * Mark across the member at a point Load's station. 16px.
+ *
+ * A concentrated Load lands on a Node, which already has a glyph saying where
+ * it is. A point Load along a member lands between Nodes, so without a mark
+ * the only thing stating the station is the arrowhead -- and an arrow at an
+ * angle reads as pointing *near* the member rather than acting at one place on
+ * it.
+ */
+export const LOAD_MEMBER_TICK_LENGTH = worldUnitsFromPixels(16);
+
+/**
  * The head triangle in its own local frame: apex at the origin pointing along
  * +x, base one head-length behind it. Flat `[x, y, z, ...]` triples, ready for
  * a `THREE.BufferAttribute`.
@@ -107,6 +118,12 @@ export interface LoadArrow {
 export interface ConcentratedGlyphGeometry extends LoadArrow {
   /** Label anchor, just beyond the tail and away from the target. */
   labelPosition: [number, number, number];
+}
+
+export interface MemberPointGlyphGeometry extends ConcentratedGlyphGeometry {
+  /** Across the member at the station, so the point of application is visible. */
+  tickStart: [number, number, number];
+  tickEnd: [number, number, number];
 }
 
 export interface UdlGlyphGeometry {
@@ -243,5 +260,50 @@ export function udlGlyphGeometry(
       midY - uy * (lift + LOAD_LABEL_GAP),
       LOAD_GLYPH_Z,
     ],
+  };
+}
+
+/**
+ * Places a point Load acting along a member: the same arrow a concentrated
+ * Load draws, with its head at the station rather than on a Node, plus a mark
+ * across the member there.
+ *
+ * `position` is metres from the start Node and is deliberately not clamped. A
+ * Node dragged shorter can strand a Load past the end of its own member, and
+ * drawing it where it actually is -- hanging off the end -- is what makes the
+ * Solve error about it make sense. Clamping would hide the problem by quietly
+ * moving a Load the user placed.
+ */
+export function memberPointGlyphGeometry(
+  startX: number,
+  startY: number,
+  endX: number,
+  endY: number,
+  position: number,
+  direction: readonly [number, number],
+  stackIndex = 0,
+): MemberPointGlyphGeometry {
+  const dx = endX - startX;
+  const dy = endY - startY;
+  const span = Math.hypot(dx, dy);
+  // A zero-length member has no station to place; falling back to its start
+  // keeps the glyph on screen rather than emitting NaN geometry, which three.js
+  // would carry into the whole scene graph.
+  const t = span === 0 ? 0 : position / span;
+  const x = startX + dx * t;
+  const y = startY + dy * t;
+
+  const arrow = loadGlyphGeometry(x, y, direction, stackIndex);
+
+  // Across the *member*, not across the arrow: the mark says where on the
+  // member the Load acts, which is independent of which way it pushes.
+  const acrossX = span === 0 ? 1 : -dy / span;
+  const acrossY = span === 0 ? 0 : dx / span;
+  const half = LOAD_MEMBER_TICK_LENGTH / 2;
+
+  return {
+    ...arrow,
+    tickStart: [x - acrossX * half, y - acrossY * half, LOAD_GLYPH_Z],
+    tickEnd: [x + acrossX * half, y + acrossY * half, LOAD_GLYPH_Z],
   };
 }

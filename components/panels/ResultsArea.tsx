@@ -2,15 +2,9 @@
 
 import { useMemo } from "react";
 import useStructureStore from "@/store/useStructureStore";
-import DiagramCard from "./DiagramCard";
-import StructureDiagram from "./StructureDiagram";
 import StepsToggle from "./StepsToggle";
 import ShowStepsPanel from "./ShowStepsPanel";
-import {
-  structureDiagrams,
-  type DiagramKind,
-  type DiagramPeak,
-} from "@/engine/diagrams";
+import { structureDiagrams, type DiagramPeak } from "@/engine/diagrams";
 import { elementLabel, nodeLabel } from "@/utils/labels";
 import {
   axialForceLabel,
@@ -90,44 +84,10 @@ export default function ResultsArea({ isBeamPreset }: ResultsAreaProps) {
   // Shared with the panel and canvas, so E1 means the same Element everywhere.
   const elementName = (elementId: string) => elementLabel(elements, elementId);
 
-  // A Beam's members are collinear, so laying them end to end on one axis is
-  // the structure itself. Anything else is drawn on its real geometry -- see
-  // StructureDiagram for why the strip cannot represent a Frame.
-  const offsets = diagrams.elements.map((_, index) =>
-    diagrams.elements
-      .slice(0, index)
-      .reduce((sum, previous) => sum + previous.length, 0),
-  );
-  const seriesFor = (pick: DiagramKind) =>
-    diagrams.elements.map((element, index) => ({
-      offset: offsets[index],
-      length: element.length,
-      samples: element[pick],
-    }));
-
-  // FR-12 and FR-13 scope the BMD and SFD to "a solved Frame/Beam structure".
-  // A Truss member carries axial force only, so its bending arrays are zero by
-  // construction -- rendering two flat cards for them would dress the absence
-  // of bending up as a computed result.
+  // The drawings live in the workspace view (DiagramPane), at a size worth
+  // reading. What stays here is what a student writes down: peak values with
+  // their locations, the Reactions, and a Truss's member forces.
   const isTruss = structureType === "TRUSS";
-
-  const bendingCard = (
-    title: string,
-    kind: DiagramKind,
-    label: string,
-  ) =>
-    isBeamPreset ? (
-      <DiagramCard title={title} peakLabel={label} series={seriesFor(kind)} />
-    ) : (
-      <StructureDiagram
-        title={title}
-        peakLabel={label}
-        kind={kind}
-        nodes={nodes}
-        elements={elements}
-        diagrams={diagrams.elements}
-      />
-    );
 
   const moment = diagrams.momentPeaks;
   const shear = diagrams.shearPeaks;
@@ -153,31 +113,49 @@ export default function ResultsArea({ isBeamPreset }: ResultsAreaProps) {
       </header>
 
       <div className="diagrams">
-        {!isTruss &&
-          bendingCard(
-            "BMD",
-            "moment",
-            `max ${peakLabel(moment.max, momentText, elementName, distanceText)} · min ${peakLabel(moment.min, momentText, elementName, distanceText)}`,
-          )}
-        {!isTruss &&
-          bendingCard(
-            "SFD",
-            "shear",
-            `max ${peakLabel(shear.max, forceText, elementName, distanceText)} · min ${peakLabel(shear.min, forceText, elementName, distanceText)}`,
-          )}
-        {/* Tension and compression are distinguished by sign in the text alone
-            (FR-14) -- the palette carries no hue for it and DESIGN.md forbids
-            inventing one. */}
-        {bendingCard(
-          "NFD",
-          "axial",
-          `max ${axial.max ? axialForceLabel(axial.max.value, unitSystem) : "—"} · min ${axial.min ? axialForceLabel(axial.min.value, unitSystem) : "—"}`,
-        )}
+        {/* One row per quantity: its peaks and where they occur. FR-12 to
+            FR-14 require exactly this labelling; the curve itself is in the
+            workspace view above, which is where it can be read. */}
+        <section className="diagram-card">
+          <h4>Peak values</h4>
+          <table className="react-table">
+            <thead>
+              <tr>
+                <th scope="col">Diagram</th>
+                <th scope="col">Max</th>
+                <th scope="col">Min</th>
+              </tr>
+            </thead>
+            <tbody>
+              {!isTruss && (
+                <tr>
+                  <th scope="row">BMD</th>
+                  <td>{peakLabel(moment.max, momentText, elementName, distanceText)}</td>
+                  <td>{peakLabel(moment.min, momentText, elementName, distanceText)}</td>
+                </tr>
+              )}
+              {!isTruss && (
+                <tr>
+                  <th scope="row">SFD</th>
+                  <td>{peakLabel(shear.max, forceText, elementName, distanceText)}</td>
+                  <td>{peakLabel(shear.min, forceText, elementName, distanceText)}</td>
+                </tr>
+              )}
+              <tr>
+                <th scope="row">NFD</th>
+                {/* Tension and compression are distinguished by sign in the
+                    text alone (FR-14) -- the palette carries no hue for it and
+                    DESIGN.md forbids inventing one. */}
+                <td>{axial.max ? axialForceLabel(axial.max.value, unitSystem) : "—"}</td>
+                <td>{axial.min ? axialForceLabel(axial.min.value, unitSystem) : "—"}</td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
 
         {/* A Truss's whole answer is which members are in tension and which in
-            compression, and by how much. On the NFD that is a constant ordinate
-            per member; read off a table it is the number a student checks
-            against their method-of-joints working. */}
+            compression, and by how much -- the number a student checks against
+            their method-of-joints working. */}
         {isTruss && (
           <section className="diagram-card">
             <h4>Member forces</h4>

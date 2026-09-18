@@ -118,10 +118,10 @@ describe("simply supported beam under a UDL", () => {
   });
 
   it("never dips into hogging, which a simply supported beam cannot do", () => {
-    // A sign flip would show this entire diagram below the axis.
-    expect(Math.abs(set.momentPeaks.min!.value)).toBeLessThan(
-      (w * L ** 2) / 8 * 0.01,
-    );
+    // A sign flip would show this entire diagram below the axis. There is no
+    // hogging extreme at all -- the curve only touches zero at the supports.
+    expect(set.momentPeaks.min).toBeNull();
+    expect(set.momentPeaks.max!.value).toBeGreaterThan(0);
   });
 
   it("curves rather than running straight between the supports", () => {
@@ -268,14 +268,17 @@ describe("degenerate cases", () => {
       {
         elementId: "a",
         length: 4,
-        axial: [{ x: 0, value: 5 }],
+        axial: [{ x: 0, value: 0 }, { x: 4, value: 5 }],
         shear: [{ x: 0, value: 0 }, { x: 4, value: 0 }],
         moment: [{ x: 0, value: 0 }, { x: 4, value: 0 }],
       },
     ];
     expect(peaksOf(zero, (d) => d.moment)).toEqual({ max: null, min: null });
     expect(peaksOf(zero, (d) => d.shear)).toEqual({ max: null, min: null });
-    // A real distribution still reports both sides.
-    expect(peaksOf(zero, (d) => d.axial).max).not.toBeNull();
+    // A one-sided distribution reports only the side it actually has: this
+    // one reaches 5 in tension and never goes into compression.
+    const axial = peaksOf(zero, (d) => d.axial);
+    expect(axial.max?.value).toBe(5);
+    expect(axial.min).toBeNull();
   });
 });

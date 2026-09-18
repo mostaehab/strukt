@@ -41,28 +41,6 @@ function seedSolvedTruss() {
   useStructureStore.getState().solve();
 }
 
-/**
- * Portal frame, fixed bases, UDL on the beam.
- *
- * The second column is drawn top-down while the first is drawn bottom-up,
- * which is how a student draws one -- and is exactly the case a strip view
- * renders antisymmetrically for a symmetric structure.
- */
-function seedSolvedPortalFrame() {
-  const store = useStructureStore.getState();
-  store.addNode({ id: "a", x: 0, y: 0, support: "FIXED" });
-  store.addNode({ id: "b", x: 0, y: 4, support: "FREE" });
-  store.addNode({ id: "c", x: 6, y: 4, support: "FREE" });
-  store.addNode({ id: "d", x: 6, y: 0, support: "FIXED" });
-  useStructureStore.getState().addElement(steel("ab", "a", "b"));
-  useStructureStore.getState().addElement(steel("bc", "b", "c"));
-  useStructureStore.getState().addElement(steel("cd", "c", "d"));
-  useStructureStore
-    .getState()
-    .addLoad(createLoad("w", "udl", elementTarget("bc"), 10000, AXIS_DIRECTIONS["-y"]));
-  useStructureStore.getState().solve();
-}
-
 function steel(id: string, startNode: string, endNode: string) {
   return {
     id,
@@ -105,18 +83,16 @@ describe("ResultsArea", () => {
   it("labels both peak values with their locations, not just the curve shape", () => {
     seedSolvedBeam();
     render(<ResultsArea isBeamPreset={false} />);
-    const bmd = screen.getByText(/BMD/).textContent ?? "";
+    const bmd = screen.getByRole("row", { name: /BMD/ }).textContent ?? "";
     // wL^2/8 = 2000 * 36 / 8 = 9000 N·m = 9.0 kN·m, at midspan.
     expect(bmd).toContain("9.0 kN·m");
     expect(bmd).toMatch(/at \d+\.\d+ m along E\d/);
-    expect(bmd).toContain("max");
-    expect(bmd).toContain("min");
   });
 
   it("labels shear peaks with a force unit, not a moment one", () => {
     seedSolvedBeam();
     render(<ResultsArea isBeamPreset={false} />);
-    const sfd = screen.getByText(/SFD/).textContent ?? "";
+    const sfd = screen.getByRole("row", { name: /SFD/ }).textContent ?? "";
     expect(sfd).toContain("kN");
     expect(sfd).not.toContain("kN·m");
   });
@@ -124,7 +100,7 @@ describe("ResultsArea", () => {
   it("distinguishes tension from compression by sign in the text alone", () => {
     seedSolvedTruss();
     render(<ResultsArea isBeamPreset={false} />);
-    const nfd = screen.getByText(/NFD/).textContent ?? "";
+    const nfd = screen.getByRole("row", { name: /NFD/ }).textContent ?? "";
     // FR-14: the sense is a word, never an extra colour.
     expect(nfd).toContain("compression");
     expect(nfd).toMatch(/[+−]/);
@@ -163,45 +139,13 @@ describe("ResultsArea", () => {
     screen.getByText(EMPTY_NOTE);
   });
 
-  it("draws a curve for each diagram rather than an empty card", () => {
+  it("keeps no drawing of its own -- the curves live in the workspace view", () => {
     seedSolvedBeam();
-    const { container } = render(<ResultsArea isBeamPreset />);
-    // One polyline per member per card, never one spanning both: joining them
-    // would draw a ramp across a shear step that is a real discontinuity.
-    const curves = container.querySelectorAll("polyline.diagram-curve");
-    expect(curves.length).toBe(6);
-    for (const curve of curves) {
-      expect(curve.getAttribute("points")).not.toBe("");
-      expect(curve.getAttribute("points")).not.toContain("NaN");
-    }
-  });
-
-  it("draws a flat line rather than NaN coordinates for an unloaded structure", () => {
-    const store = useStructureStore.getState();
-    store.addNode({ id: "a", x: 0, y: 0, support: "FIXED" });
-    store.addNode({ id: "b", x: 4, y: 0, support: "FREE" });
-    useStructureStore.getState().addElement(steel("ab", "a", "b"));
-    useStructureStore.getState().solve();
-
-    const { container } = render(<ResultsArea isBeamPreset />);
-    for (const curve of container.querySelectorAll("polyline.diagram-curve")) {
-      expect(curve.getAttribute("points")).not.toContain("NaN");
-    }
-  });
-
-  it("draws a Frame on its own geometry, not on a flattened strip", () => {
-    seedSolvedPortalFrame();
     const { container } = render(<ResultsArea isBeamPreset={false} />);
-    // The strip view is a polyline in card space; the geometry view is a path
-    // in world metres. A Frame must never get the strip.
-    expect(container.querySelectorAll("polyline.diagram-curve").length).toBe(0);
-    const curves = container.querySelectorAll("path.diagram-curve");
-    expect(curves.length).toBeGreaterThan(0);
-    for (const curve of curves) {
-      expect(curve.getAttribute("d")).not.toContain("NaN");
-    }
-    // The structure itself is drawn under the diagram, once per member.
-    expect(container.querySelectorAll("path.structure-member").length).toBe(9);
+    // A 220px card was the reason the diagrams were unreadable. The numbers
+    // stay here; the drawing gets the workspace.
+    expect(container.querySelector("svg")).toBeNull();
+    expect(screen.getByText("Peak values")).toBeDefined();
   });
 
   it("omits the BMD and SFD for a Truss, which carries no bending", () => {

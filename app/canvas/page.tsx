@@ -8,6 +8,8 @@ import PropertiesPanel, {
 import CanvasWorkspace from "@/components/canvas/CanvasWorkspace";
 import SolveBar from "@/components/panels/SolveBar";
 import ResultsArea from "@/components/panels/ResultsArea";
+import ViewSwitch, { type WorkspaceView } from "@/components/panels/ViewSwitch";
+import DiagramPane from "@/components/panels/DiagramPane";
 import useStructureStore from "@/store/useStructureStore";
 import {
   loadsRemovedWithElement,
@@ -43,7 +45,11 @@ export default function Home() {
     null,
   );
 
+  const [view, setView] = useState<WorkspaceView>("MODEL");
+
   const elements = useStructureStore((s) => s.elements);
+  const results = useStructureStore((s) => s.results);
+  const structureType = useStructureStore((s) => s.type);
   // A primitive selector, not the whole `nodes` array: dragging a Node changes
   // that array on every pointer move, and the shell only cares whether the
   // selected id still exists.
@@ -67,6 +73,19 @@ export default function Home() {
     setSelectedElementId(id);
     if (id !== null) setSelectedNodeId(null);
   }, []);
+
+  // Results render unprompted (UX-DR9's fast path), and at this size that means
+  // switching the workspace to the diagram rather than making the user go
+  // looking for it. Adjusted during render rather than in an effect -- React's
+  // "adjusting state when props change" pattern, as used for the selections
+  // below -- so the model is never painted for a frame after a Solve landed.
+  const [lastResults, setLastResults] = useState(results);
+  if (results !== lastResults) {
+    setLastResults(results);
+    // Back to the model when an edit invalidates the answer: a diagram of a
+    // structure that no longer exists is worse than no diagram.
+    setView(results ? (structureType === "TRUSS" ? "axial" : "moment") : "MODEL");
+  }
 
   // Any delete path (the cascade in deleteNode, a future clear/undo/load) can
   // leave a selection pointing at an id that no longer exists. Both are
@@ -168,16 +187,29 @@ export default function Home() {
   return (
     <div className="app-shell">
       <Toolbar tool={tool} onToolChange={setTool} />
+      <ViewSwitch
+        view={view}
+        onViewChange={setView}
+        isTruss={structureType === "TRUSS"}
+        solved={results !== null}
+      />
       <SolveBar />
       <div className="workspace-body">
-        <CanvasWorkspace
-          tool={tool}
-          beamPreset={preset === "BEAM"}
-          selectedNodeId={selectedNodeId}
-          onSelectNode={handleSelectNode}
-          selectedElementId={selectedElementId}
-          onSelectElement={handleSelectElement}
-        />
+        {/* One area, one thing in it. The canvas stays mounted only in model
+            view: a WebGL context behind a diagram costs memory and keeps
+            responding to pointer events it should not receive. */}
+        {view === "MODEL" ? (
+          <CanvasWorkspace
+            tool={tool}
+            beamPreset={preset === "BEAM"}
+            selectedNodeId={selectedNodeId}
+            onSelectNode={handleSelectNode}
+            selectedElementId={selectedElementId}
+            onSelectElement={handleSelectElement}
+          />
+        ) : (
+          <DiagramPane kind={view} />
+        )}
         <PropertiesPanel
           preset={preset}
           onPresetChange={setPreset}

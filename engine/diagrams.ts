@@ -20,6 +20,14 @@ import type {
  * value a student is checking by hand.
  */
 
+/**
+ * Share of a distribution's own peak below which an extreme is treated as zero.
+ *
+ * Far below any real result and far above solver round-off, so it separates
+ * "this side of the diagram does not exist" from "this side is small".
+ */
+const NEGLIGIBLE = 1e-9;
+
 /** Points sampled along a member, enough to render a parabola smoothly. */
 const SAMPLES_PER_ELEMENT = 21;
 
@@ -161,12 +169,12 @@ function samplePositions(
 /**
  * Largest positive and largest negative sample, with where each occurs.
  *
- * A distribution that is zero everywhere has no peak, and both sides come back
- * null rather than naming whichever member happened to be sampled first. That
- * case is not hypothetical: a Truss carries no bending at all, so its shear and
- * moment arrays are zero by construction, and reporting `0.0 kN.m at 0.00 m
- * along E1` states a fact about E1 that is true of every member equally -- it
- * reads as a computed result when nothing was computed.
+ * An extreme of exactly zero is not reported. Zero is where the diagram meets
+ * its member, not a peak of it: a purely sagging beam touches zero at both
+ * pinned ends, and `0.0 kN.m at 0.00 m along E1` names one of them as though a
+ * search had found it. A Truss makes the same point at full size -- it carries
+ * no bending at all, so both its shear and moment arrays are zero by
+ * construction and neither side has anything to report.
  */
 export function peaksOf(
   diagrams: ElementDiagram[],
@@ -174,11 +182,9 @@ export function peaksOf(
 ): { max: DiagramPeak | null; min: DiagramPeak | null } {
   let max: DiagramPeak | null = null;
   let min: DiagramPeak | null = null;
-  let anyNonZero = false;
 
   for (const diagram of diagrams) {
     for (const sample of pick(diagram)) {
-      if (sample.value !== 0) anyNonZero = true;
       if (max === null || sample.value > max.value) {
         max = { value: sample.value, at: sample.x, elementId: diagram.elementId };
       }
@@ -187,7 +193,15 @@ export function peaksOf(
       }
     }
   }
-  return anyNonZero ? { max, min } : { max: null, min: null };
+  // Relative to the distribution's own magnitude, never an absolute figure: a
+  // simply supported beam's support moment is zero in theory and about 1e-12
+  // in floating point, and no fixed threshold in N.m can tell that apart from
+  // a real result on a structure of unknown size.
+  const largest = Math.max(Math.abs(max?.value ?? 0), Math.abs(min?.value ?? 0));
+  const meaningful = (peak: DiagramPeak | null) =>
+    peak && Math.abs(peak.value) > largest * NEGLIGIBLE ? peak : null;
+
+  return { max: meaningful(max), min: meaningful(min) };
 }
 
 /** Every member's diagrams, plus the structure-wide peaks FR-12/13 label. */

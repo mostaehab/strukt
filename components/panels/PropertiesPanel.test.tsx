@@ -44,6 +44,14 @@ function storedLoads() {
   return useStructureStore.getState().loads;
 }
 
+function stationInput() {
+  return screen.getByLabelText("Distance from start (m)") as HTMLInputElement;
+}
+
+function pickKind(value: string) {
+  fireEvent.change(screen.getByLabelText("Type"), { target: { value } });
+}
+
 function magnitudeInput(unit = "kN") {
   return screen.getByLabelText(`Magnitude (${unit})`) as HTMLInputElement;
 }
@@ -786,6 +794,76 @@ describe("PropertiesPanel Element Load block", () => {
     applyLoad("2", "kN/m");
     fireEvent.click(screen.getByLabelText("Delete Load 1 on Element E1"));
     expect(storedLoads()).toEqual([]);
+  });
+
+  it("applies a point Load at the station entered", () => {
+    seedElement();
+    renderPanel();
+    pickKind("point");
+    enter(magnitudeInput(), "12");
+    enter(stationInput(), "2");
+    fireEvent.click(screen.getByText("Apply Load"));
+
+    expect(storedLoads()).toHaveLength(1);
+    const [load] = storedLoads();
+    expect(load.kind).toBe("point");
+    expect(load.magnitude).toBe(12000);
+    expect(load.kind === "point" && load.position).toBe(2);
+  });
+
+  it("refuses a point Load with no station rather than placing it at the start", () => {
+    seedElement();
+    renderPanel();
+    pickKind("point");
+    enter(magnitudeInput(), "12");
+    fireEvent.click(screen.getByText("Apply Load"));
+
+    // A Load acting at the start Node is a concentrated Node Load and is
+    // entered as one; defaulting to it here would place a Load somewhere
+    // plausible that the user never asked for.
+    screen.getByText(
+      "Load on Element E1 needs a distance from the start of the member. Enter how far along it the Load acts.",
+    );
+    expect(storedLoads()).toEqual([]);
+  });
+
+  it("does not carry one Load's station into the next", () => {
+    // The field empties after each Apply, so a station surviving that would
+    // place the second Load where the first went while showing nothing.
+    seedElement();
+    renderPanel();
+    pickKind("point");
+    enter(magnitudeInput(), "12");
+    enter(stationInput(), "2");
+    fireEvent.click(screen.getByText("Apply Load"));
+
+    enter(magnitudeInput(), "5");
+    fireEvent.click(screen.getByText("Apply Load"));
+    expect(storedLoads()).toHaveLength(1);
+    screen.getByText(
+      "Load on Element E1 needs a distance from the start of the member. Enter how far along it the Load acts.",
+    );
+  });
+
+  it("treats a retyped station as stale until it is completed again", () => {
+    seedElement();
+    renderPanel();
+    pickKind("point");
+    enter(magnitudeInput(), "12");
+    enter(stationInput(), "2");
+    // Typing again invalidates the committed station, the same rule the
+    // magnitude draft follows.
+    fireEvent.change(stationInput(), { target: { value: "3" } });
+    fireEvent.click(screen.getByText("Apply Load"));
+    expect(storedLoads()).toEqual([]);
+  });
+
+  it("offers no station field for a UDL, which has no single station", () => {
+    seedElement();
+    renderPanel();
+    expect(screen.queryByLabelText("Distance from start (m)")).toBeNull();
+    pickKind("point");
+    expect(screen.getByLabelText("Distance from start (m)")).toBeDefined();
   });
 
   it("shows a UDL block for a Truss Element too, inertia field or not", () => {

@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>strukt — Key Screen: Canvas Workspace</title>
+<style>
+  /* ============================================================
+     KEY SCREEN — Canvas Workspace (UJ-1: Sara draws an 8m simply
+     supported beam, sets Hinged supports at both ends, places three
+     5kN concentrated loads, and Solves — plus the FR-11 instability
+     guard when a support is left unrestrained).
+
+     Visual identity locked from Discovery:
+       direction  = Precise & Clinical (.working/direction-precise-
+                     clinical.html) — used for LAYOUT REFERENCE ONLY
+                     (topbar / toolbar / canvas / properties-panel /
+                     results-area composition). That file's placeholder
+                     blueprint-blue palette is NOT reused here.
+       color set  = Deep Navy & Safety Orange, VARIATION 3 ONLY
+                     (.working/color-themes-1.html) — hex values below
+                     are copied verbatim from that variation's light
+                     mode chip list, no new colors invented.
+
+     This is the FIRST render of the canvas hero with the final chosen
+     palette — the direction mock above was only ever built with the
+     placeholder blueprint-blue, before color selection happened.
+
+     REVISION discipline: built with the lighter-chrome treatment from
+     the start (per .memlog.md, "Visual-weight feedback"), not heavy-
+     then-lightened — hairline dividers instead of solid borders
+     wherever a line isn't load-bearing structure, soft diffuse shadows
+     instead of hard offsets, a LIGHT (not dark-navy-filled) topbar and
+     toolbar, a widened canvas-grid pitch, and generous padding
+     throughout. Same Precise & Clinical personality — sharp corners,
+     monospace numerals, graph-paper grid — just quieter execution.
+     Accent hex values are unchanged from Variation 3.
+
+     Future spine sections this screen will illustrate:
+       - Information Architecture → PRD IA items 1-4: canvas workspace,
+         toolbar/toolbox, properties panel, results view (BMD/SFD/NFD
+         + Reactions)
+       - Component Patterns       → Node/Element/Support/Load glyphs,
+         diagram cards, reaction table, Show Steps toggle
+       - State Patterns           → solved state vs. the FR-11
+         instability-blocked state (secondary panel below)
+     ============================================================ */
+
+  :root{
+    /* --- Variation 1 (Blueprint Classic), light mode — identical tokens to key-dashboard.html --- */
+    --color-bg-page:      #E4EAEF; /* --bg */
+    --color-bg-canvas:    #E4EAEF; /* --bg   : graph-paper drafting surface */
+    --color-bg-panel:     #FFFFFF; /* --surface : topbar / panels / footer fill */
+    --color-ink:          #10233B; /* --text */
+    --color-ink-soft:     #4B5D70; /* --text2 */
+    --color-grid-line:    #C7D3DB; /* --grid */
+    --color-border:       #B7C4CC; /* --border : locked token, reference-only after the lighter-chrome pass */
+    --color-accent:       #1D5FBF; /* --accentP : sole interactive accent — Solve, loads, selection */
+    --color-success:      #1E7F5C; /* --accentS */
+    --color-error:        #B3261E; /* --accentD : instability / validation error */
+    --color-truss:        #1D5FBF; /* --truss */
+    --color-frame-ink:    #10233B; /* --frame : Beam/Frame element stroke (= --text) */
+    --line-hairline:      rgba(16,35,59,.14);  /* lighter-chrome pass: quiet derived tint of --text */
+    --shadow-soft:         0 1px 3px rgba(16,35,59,.05); /* lighter-chrome pass: diffuse low-opacity blur */
+    --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --font-mono: ui-monospace, SFMono-Regular, "Cascadia Mono", Consolas, "Liberation Mono", monospace;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; padding:32px 24px 64px; background:var(--color-bg-page);
+    font-family:var(--font-sans); color:var(--color-ink);
+  }
+  .rationale{
+    max-width:1200px; margin:0 auto 28px; font-size:14px; line-height:1.55; color:var(--color-ink-soft);
+    border-left:3px solid var(--color-accent); padding:10px 16px; background:var(--color-bg-panel);
+  }
+  .rationale b{color:var(--color-ink);}
+  h2.section-label{
+    max-width:1200px; margin:40px auto 10px; font-size:11px; letter-spacing:.12em; text-transform:uppercase;
+    color:var(--color-ink-soft); font-weight:700; border-bottom:1px solid var(--color-border); padding-bottom:6px;
+  }
+  .caption{
+    max-width:1200px; margin:8px auto 0; font-size:11px; font-family:var(--font-mono); color:var(--color-ink-soft);
+  }
+
+  .browser-frame{
+    max-width:1200px; margin:0 auto; background:var(--color-bg-panel); border:1px solid var(--line-hairline);
+    box-shadow:var(--shadow-soft); display:flex; flex-direction:column;
+  }
+  .browser-frame.small{max-width:900px;}
+  .browser-chrome{
+    display:flex; align-items:center; gap:8px; padding:9px 14px; background:#F4F6F9; border-bottom:1px solid var(--line-hairline);
+  }
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--line-hairline);}
+  .url-bar{
+    flex:1; margin-left:10px; background:var(--color-bg-panel); border:1px solid var(--line-hairline);
+    font-family:var(--font-mono); font-size:11px; color:var(--color-ink-soft); padding:4px 10px;
+  }
+
+  /* ---- app topbar: light surface, no dark navy fill ---- */
+  .app-topbar{
+    display:flex; align-items:center; gap:16px; padding:14px 20px; background:var(--color-bg-panel);
+    border-bottom:1px solid var(--line-hairline);
+  }
+  .logo{font-weight:700; font-size:15px; letter-spacing:.02em;}
+  .logo .sq{display:inline-block;width:9px;height:9px;background:var(--color-accent);margin-right:6px;vertical-align:1px;}
+  .proj-name{font-size:12px; color:var(--color-ink-soft); border-left:1px solid var(--line-hairline); padding-left:16px;}
+  .proj-name b{color:var(--color-ink); font-weight:600;}
+  .spacer{flex:1;}
+  .units-toggle{display:flex; font-size:11px; font-family:var(--font-mono);}
+  .units-toggle span{padding:4px 9px; border:1px solid var(--line-hairline); background:#fff; color:var(--color-ink-soft);}
+  .units-toggle span.on{color:var(--color-ink); font-weight:700; border-bottom:2px solid var(--color-accent);}
+  .btn-solve{
+    font-family:var(--font-sans); font-size:12px; font-weight:700; letter-spacing:.03em; text-transform:uppercase;
+    background:var(--color-accent); color:#fff; border:1px solid var(--color-accent); padding:7px 18px; cursor:default;
+  }
+  .btn-solve.blocked{background:#fff; color:var(--color-error); border-color:var(--color-error);}
+  .avatar{width:26px;height:26px;border:1px solid var(--line-hairline); background:#fff; font-size:10px; font-family:var(--font-mono);
+    display:flex; align-items:center; justify-content:center; color:var(--color-ink-soft);}
+
+  .app-body{display:flex; min-height:440px;}
+
+  /* ---- toolbar rail: light, quiet — active state is an underline, not a filled box ---- */
+  .toolbar{
+    width:60px; background:#F7F9FB; border-right:1px solid var(--line-hairline);
+    display:flex; flex-direction:column; align-items:center; padding:16px 0; gap:6px;
+  }
+  .tool{
+    width:38px;height:38px; display:flex; align-items:center; justify-content:center; color:var(--color-ink-soft);
+    border-bottom:2px solid transparent;
+  }
+  .tool svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.5;}
+  .tool.active{color:var(--color-ink); border-bottom-color:var(--color-accent);}
+  .tool-label{font-size:8px; text-transform:uppercase; letter-spacing:.04em; margin-top:2px; color:inherit;}
+  .tool-sep{width:28px;height:1px;background:var(--line-hairline); margin:8px 0;}
+
+  /* ---- drafting canvas: same --bg as page, widened grid pitch ---- */
+  .canvas-area{
+    flex:1; background:var(--color-bg-canvas); position:relative;
+    background-image: radial-gradient(var(--color-grid-line) 1px, transparent 1px);
+    background-size: 30px 30px;
+  }
+  .canvas-area svg{width:100%; height:100%; display:block;}
+
+  .side-panel{
+    width:270px; flex-shrink:0; background:var(--color-bg-panel); border-left:1px solid var(--line-hairline); padding:18px;
+  }
+  .side-panel h3{
+    font-size:10px; text-transform:uppercase; letter-spacing:.1em; color:var(--color-ink-soft); margin:0 0 14px;
+    border-bottom:1px solid var(--line-hairline); padding-bottom:8px;
+  }
+  .field{margin-bottom:14px;}
+  .field label{display:block; font-size:9.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--color-ink-soft); margin-bottom:4px;}
+  .field .val{
+    font-family:var(--font-mono); font-size:12.5px; border:1px solid var(--line-hairline); background:#fbfcfd;
+    padding:6px 9px; display:flex; justify-content:space-between;
+  }
+  .field .val.select{color:var(--color-ink); font-weight:600;}
+  .field .val .unit{color:var(--color-ink-soft);}
+  .divider{height:1px; background:var(--line-hairline); margin:16px 0;}
+  .load-tag{
+    display:inline-block; font-family:var(--font-mono); font-size:11px; background:#fff;
+    border:1px solid var(--color-accent); color:var(--color-accent); padding:3px 8px; margin-top:2px; font-weight:600;
+  }
+
+  /* ---- results area: light panel, soft top hairline ---- */
+  .results-area{background:var(--color-bg-panel); border-top:1px solid var(--line-hairline); padding:18px 20px;}
+  .results-head{display:flex; align-items:center; gap:14px; margin-bottom:12px;}
+  .results-head h3{font-size:11px; text-transform:uppercase; letter-spacing:.1em; color:var(--color-ink-soft); margin:0;}
+  .tag-solved{font-family:var(--font-mono); font-size:10px; color:var(--color-success); border:1px solid var(--color-success); padding:1px 6px;}
+  .steps-toggle{margin-left:auto; font-size:11px; font-family:var(--font-mono); color:var(--color-ink-soft); display:flex; align-items:center; gap:6px;}
+  .steps-toggle .sw{width:28px;height:14px;border:1px solid var(--line-hairline); position:relative; background:#fff;}
+  .steps-toggle .sw i{position:absolute; left:1px; top:1px; width:11px; height:11px; background:var(--color-ink-soft);}
+  .diagrams{display:grid; grid-template-columns:repeat(3,1fr) 190px; gap:14px;}
+  .diagram-card{border:1px solid var(--line-hairline); padding:10px; box-shadow:var(--shadow-soft);}
+  .diagram-card h4{
+    margin:0 0 6px; font-size:10px; text-transform:uppercase; letter-spacing:.06em; color:var(--color-ink-soft);
+    display:flex; justify-content:space-between;
+  }
+  .diagram-card h4 span{font-family:var(--font-mono); color:var(--color-accent); text-transform:none;}
+  .diagram-card svg{width:100%; height:70px; display:block;}
+  .react-table{font-family:var(--font-mono); font-size:11px; width:100%; border-collapse:collapse;}
+  .react-table th{font-family:var(--font-sans); font-size:9px; text-transform:uppercase; letter-spacing:.05em; color:var(--color-ink-soft); text-align:left; font-weight:600; padding-bottom:4px;}
+  .react-table td{padding:3px 0; border-top:1px solid var(--line-hairline);}
+
+  .error-banner{
+    background:#FCEBEA; border:1px solid var(--color-error); color:var(--color-error); font-size:12px;
+    padding:9px 14px; margin:14px 18px; font-family:var(--font-mono);
+  }
+  .empty-note{font-size:12px; color:var(--color-ink-soft); padding:8px 0;}
+  .variant-wrap{max-width:900px; margin:0 auto;}
+
+  /* ---- persistent safety-disclaimer chrome: same pattern as key-dashboard.html ---- */
+  .app-footer{
+    display:flex; align-items:center; gap:8px; padding:10px 20px; border-top:1px solid var(--line-hairline);
+    background:var(--color-bg-panel);
+  }
+  .disclaimer-badge{
+    font-family:var(--font-mono); font-size:9.5px; letter-spacing:.02em; color:var(--color-ink-soft);
+    border:1px solid var(--line-hairline); padding:3px 8px; background:transparent;
+  }
+  .app-footer .fill{flex:1;}
+  .app-footer .build-tag{font-family:var(--font-mono); font-size:9.5px; color:var(--color-ink-soft);}
+</style>
+</head>
+<body>
+
+  <div class="rationale">
+    <b>Key Screen — Canvas Workspace (UJ-1).</b> Sara draws an 8m simply supported beam (Nodes N1–N5),
+    sets both end supports to Hinged, places three 5kN concentrated loads, and Solves — the diagrams
+    and reactions render immediately below. First render of this screen with the final Deep Navy &amp;
+    Safety Orange tokens (Variation 3 only, verbatim hex) — the layout is carried over from the
+    Precise &amp; Clinical direction mock, but every color here is final, and the chrome was built
+    light from the start: hairline dividers, soft diffuse shadows, a light topbar/toolbar rather than
+    a dark-navy-filled one, a wide canvas-grid pitch, generous padding. Same footer disclaimer-badge
+    pattern as the dashboard, for visual consistency across screens.
+  </div>
+
+  <h2 class="section-label">Primary state — canvas hero, mid-session, just after Solve</h2>
+  <div class="browser-frame">
+    <div class="browser-chrome">
+      <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+      <div class="url-bar">strukt.app/p/sara-hw3-simply-supported-beam</div>
+    </div>
+    <div class="app-topbar">
+      <div class="logo"><span class="sq"></span>strukt</div>
+      <div class="proj-name">Project: <b>HW3 — Simply Supported Beam</b> · Beam (Frame preset)</div>
+      <div class="spacer"></div>
+      <div class="units-toggle"><span class="on">SI</span><span>Imperial</span></div>
+      <button class="btn-solve">Solve ✓</button>
+      <div class="avatar">SM</div>
+    </div>
+    <div class="app-body">
+      <div class="toolbar">
+        <div class="tool"><svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="5"/></svg><div class="tool-label">Node</div></div>
+        <div class="tool"><svg viewBox="0 0 20 20"><line x1="3" y1="17" x2="17" y2="3"/></svg><div class="tool-label">Element</div></div>
+        <div class="tool"><svg viewBox="0 0 20 20"><path d="M10 3 L17 16 L3 16 Z"/></svg><div class="tool-label">Support</div></div>
+        <div class="tool"><svg viewBox="0 0 20 20"><line x1="10" y1="2" x2="10" y2="15"/><path d="M5 10 L10 16 L15 10"/></svg><div class="tool-label">Load</div></div>
+        <div class="tool-sep"></div>
+        <div class="tool active"><svg viewBox="0 0 20 20"><path d="M3 3 L9 17 L11 11 L17 9 Z"/></svg><div class="tool-label">Select</div></div>
+      </div>
+
+      <div class="canvas-area">
+        <svg viewBox="0 0 720 260" preserveAspectRatio="xMidYMid meet">
+          <!-- beam element (Frame preset) -->
+          <line x1="40" y1="120" x2="680" y2="120" stroke="var(--color-frame-ink)" stroke-width="3"/>
+          <!-- dimension line -->
+          <line x1="40" y1="200" x2="680" y2="200" stroke="var(--color-ink-soft)" stroke-width="1"/>
+          <line x1="40" y1="194" x2="40" y2="206" stroke="var(--color-ink-soft)" stroke-width="1"/>
+          <line x1="680" y1="194" x2="680" y2="206" stroke="var(--color-ink-soft)" stroke-width="1"/>
+          <text x="360" y="216" text-anchor="middle" font-family="var(--font-mono)" font-size="11" fill="var(--color-ink-soft)">8.00 m</text>
+
+          <!-- three 5kN concentrated loads at N2, N3, N4 -->
+          <g stroke="var(--color-accent)" stroke-width="2" fill="var(--color-accent)">
+            <line x1="200" y1="55" x2="200" y2="115"/><path d="M200 118 L194 106 L206 106 Z"/>
+            <line x1="360" y1="55" x2="360" y2="115"/><path d="M360 118 L354 106 L366 106 Z"/>
+            <line x1="520" y1="55" x2="520" y2="115"/><path d="M520 118 L514 106 L526 106 Z"/>
+          </g>
+          <text x="200" y="46" text-anchor="middle" font-family="var(--font-mono)" font-size="11" fill="var(--color-accent)">5 kN</text>
+          <text x="360" y="46" text-anchor="middle" font-family="var(--font-mono)" font-size="11" fill="var(--color-accent)">5 kN</text>
+          <text x="520" y="46" text-anchor="middle" font-family="var(--font-mono)" font-size="11" fill="var(--color-accent)">5 kN</text>
+
+          <!-- selection ring on N2 (the node whose properties are shown alongside) -->
+          <circle cx="200" cy="120" r="13" fill="none" stroke="var(--color-accent)" stroke-width="2" stroke-dasharray="3 2"/>
+
+          <!-- supports: Hinged hatch triangles at N1 and N5 -->
+          <g stroke="var(--color-ink)" stroke-width="1.5" fill="none">
+            <path d="M40 120 L30 138 L50 138 Z"/>
+            <line x1="26" y1="138" x2="54" y2="138"/>
+            <line x1="28" y1="138" x2="24" y2="144"/><line x1="34" y1="138" x2="30" y2="144"/><line x1="40" y1="138" x2="36" y2="144"/><line x1="46" y1="138" x2="42" y2="144"/><line x1="52" y1="138" x2="48" y2="144"/>
+
+            <path d="M680 120 L670 138 L690 138 Z"/>
+            <line x1="666" y1="138" x2="694" y2="138"/>
+            <line x1="668" y1="138" x2="664" y2="144"/><line x1="674" y1="138" x2="670" y2="144"/><line x1="680" y1="138" x2="676" y2="144"/><line x1="686" y1="138" x2="682" y2="144"/><line x1="692" y1="138" x2="688" y2="144"/>
+          </g>
+          <text x="40" y="164" text-anchor="middle" font-family="var(--font-mono)" font-size="9" fill="var(--color-ink-soft)">Hinged</text>
+          <text x="680" y="164" text-anchor="middle" font-family="var(--font-mono)" font-size="9" fill="var(--color-ink-soft)">Hinged</text>
+
+          <!-- nodes -->
+          <g fill="var(--color-bg-panel)" stroke="var(--color-ink)" stroke-width="2">
+            <circle cx="40" cy="120" r="5"/><circle cx="200" cy="120" r="5"/>
+            <circle cx="360" cy="120" r="5"/><circle cx="520" cy="120" r="5"/><circle cx="680" cy="120" r="5"/>
+          </g>
+          <g font-family="var(--font-mono)" font-size="10" fill="var(--color-ink-soft)">
+            <text x="40" y="106" text-anchor="middle">N1</text>
+            <text x="200" y="106" text-anchor="middle">N2</text>
+            <text x="360" y="106" text-anchor="middle">N3</text>
+            <text x="520" y="106" text-anchor="middle">N4</text>
+            <text x="680" y="106" text-anchor="middle">N5</text>
+          </g>
+        </svg>
+      </div>
+
+      <div class="side-panel">
+        <h3>Node N2 — Properties</h3>
+        <div class="field"><label>Coordinates</label><div class="val select">x = 2.00 <span class="unit">m</span> &nbsp; y = 0.00 <span class="unit">m</span></div></div>
+        <div class="field"><label>Support</label><div class="val">Free (none assigned)</div></div>
+        <div class="field"><label>Degrees of Freedom</label><div class="val">u, v, θ free</div></div>
+        <div class="divider"></div>
+        <div class="field">
+          <label>Load (concentrated)</label>
+          <div class="load-tag">5.00 kN, −y</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="results-area">
+      <div class="results-head">
+        <h3>Results</h3><span class="tag-solved">Solved ✓</span>
+        <div class="steps-toggle">Show Steps <div class="sw"><i></i></div></div>
+      </div>
+      <div class="diagrams">
+        <div class="diagram-card">
+          <h4>BMD <span>M·max = 20.0 kNm</span></h4>
+          <svg viewBox="0 0 220 70"><polyline points="10,20 60,29 110,32 160,29 210,20" fill="none" stroke="var(--color-accent)" stroke-width="2"/><line x1="10" y1="20" x2="210" y2="20" stroke="var(--line-hairline)" stroke-width="1"/></svg>
+        </div>
+        <div class="diagram-card">
+          <h4>SFD <span>V range ±7.5 kN</span></h4>
+          <svg viewBox="0 0 220 70"><polyline points="10,10 60,10 60,25 110,25 110,45 160,45 160,60 210,60" fill="none" stroke="var(--color-accent)" stroke-width="2"/><line x1="10" y1="35" x2="210" y2="35" stroke="var(--line-hairline)" stroke-width="1"/></svg>
+        </div>
+        <div class="diagram-card">
+          <h4>NFD <span>N = 0 kN</span></h4>
+          <svg viewBox="0 0 220 70"><line x1="10" y1="35" x2="210" y2="35" stroke="var(--color-accent)" stroke-width="2"/></svg>
+        </div>
+        <div class="diagram-card">
+          <h4>Reactions</h4>
+          <table class="react-table">
+            <tr><th>Node</th><th>Rx</th><th>Ry</th></tr>
+            <tr><td>N1</td><td>0.00</td><td>7.50</td></tr>
+            <tr><td>N5</td><td>0.00</td><td>7.50</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="app-footer">
+      <div class="disclaimer-badge">strukt is a learning tool — not a substitute for licensed/certified professional engineering judgment</div>
+      <div class="fill"></div>
+      <div class="build-tag">v0.1 · MVP</div>
+    </div>
+  </div>
+  <div class="caption">8m beam, Nodes N1–N5, Hinged supports at both ends, three 5kN concentrated loads at N2/N3/N4. Node N2 selected — its properties panel shows coordinates, its (unassigned) Support, DOF, and its Load. Results below show BMD/SFD/NFD and Reactions after Solve.</div>
+
+  <h2 class="section-label">Secondary state — instability blocks Solve (FR-11)</h2>
+  <div class="variant-wrap">
+    <div class="browser-frame small">
+      <div class="browser-chrome">
+        <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+        <div class="url-bar">strukt.app/p/sara-hw3-simply-supported-beam</div>
+      </div>
+      <div class="app-topbar">
+        <div class="logo"><span class="sq"></span>strukt</div>
+        <div class="proj-name">Project: <b>HW3 — Simply Supported Beam</b></div>
+        <div class="spacer"></div>
+        <button class="btn-solve blocked">Solve — blocked</button>
+      </div>
+      <div class="error-banner">Can't solve: Node N5 is unrestrained. Assign a Support (Fixed, Hinged, or Roller) to continue.</div>
+      <div class="canvas-area" style="height:170px;">
+        <svg viewBox="0 0 720 200" preserveAspectRatio="xMidYMid meet">
+          <line x1="40" y1="100" x2="680" y2="100" stroke="var(--color-frame-ink)" stroke-width="3"/>
+          <g stroke="var(--color-ink)" stroke-width="1.5" fill="none">
+            <path d="M40 100 L30 118 L50 118 Z"/><line x1="26" y1="118" x2="54" y2="118"/>
+            <line x1="28" y1="118" x2="24" y2="124"/><line x1="34" y1="118" x2="30" y2="124"/><line x1="40" y1="118" x2="36" y2="124"/><line x1="46" y1="118" x2="42" y2="124"/><line x1="52" y1="118" x2="48" y2="124"/>
+          </g>
+          <circle cx="680" cy="100" r="16" fill="none" stroke="var(--color-error)" stroke-width="2" stroke-dasharray="3 2"/>
+          <g fill="var(--color-bg-panel)" stroke="var(--color-ink)" stroke-width="2">
+            <circle cx="40" cy="100" r="5"/><circle cx="200" cy="100" r="5"/><circle cx="360" cy="100" r="5"/><circle cx="520" cy="100" r="5"/>
+            <circle cx="680" cy="100" r="5" stroke="var(--color-error)"/>
+          </g>
+          <text x="680" y="86" text-anchor="middle" font-family="var(--font-mono)" font-size="10" fill="var(--color-error)">N5 — Free ⚠</text>
+        </svg>
+      </div>
+      <div class="results-area"><div class="empty-note">No results to show — fix the structure above, then Solve again.</div></div>
+      <div class="app-footer">
+        <div class="disclaimer-badge">strukt is a learning tool — not a substitute for licensed/certified professional engineering judgment</div>
+        <div class="fill"></div>
+        <div class="build-tag">v0.1 · MVP</div>
+      </div>
+    </div>
+    <div class="caption">Node N5's Support reads "Free" instead of "Hinged" — Solve is blocked with a specific, actionable error rather than a wrong or crashed result; previously shown results are cleared, not left stale.</div>
+  </div>
+
+</body>
+</html>

@@ -86,6 +86,35 @@ Findings from three adversarial review layers (blind-hunter, edge-case-hunter, v
   summary: Story 1.5b — wire Solve into the app: rename `store.analysisResults` to `results` and add `showSteps` (AD-2), clear both inline at all nine mutation sites (AD-3's same-action rule), add a `solve` store action, and build the Solve button with its blocked variant plus the `aria-live` error banner above the canvas.
   evidence: Split from Story 1.5 at the step-02 token gate (spec was ~3230 tokens against a 1600 ceiling). The solver engine merges alone — nothing imports it yet — whereas this half depends on it, so the two are sequential rather than independent; the split is about dispatch size, not shippability. Story 1.5's acceptance criteria are all phrased around clicking Solve, so they are only fully satisfied once this lands: until then the solver is correct and benchmark-gated but unreachable from the UI. Carries the third deferral of AD-2's `analysisResults` → `results` rename, whose mutation-site count has now grown from one (Story 1.3) to nine as Elements and Loads landed — the retrofit gets more expensive each story it waits.
 
+## From the diagram and Truss-load work (unstoried) — 2026-09-21
+
+These four commits were requested directly rather than run through a story, so
+they carry no spec and had no Reviewer Gate. That is itself the first entry.
+
+- source_spec: none — `2f80760`, `236dc5e`, `5b6fc83`, `5058343`
+  summary: The diagram rewrite, the Truss member-load work and the `point` Load kind shipped without a story, acceptance criteria, or a Reviewer Gate. Roughly 1,900 lines across `engine/diagramGeometry.ts`, `engine/diagrams.ts`, `engine/stiffness.ts`, `engine/validation.ts`, `utils/labelLayout.ts`, four new panel components, the canvas glyph, the store and the properties panel.
+  evidence: The architecture and PRD have since been amended to describe what was built (AD-10 amended, AD-11 and AD-12 added, FR-9 and FR-12 extended), so the specs are no longer stale — but they were written *after* the code, which inverts the gate they exist to be. Fold this scope into the pending reviewer pass rather than treating `pending-review/` as covering only 1.5a–2.1.
+
+- source_spec: none — `5058343`
+  summary: The Frame diagram defect that started this work was live for three commits with a fully green suite. `ResultsArea` laid every member end to end on one horizontal strip in array order, so a portal frame rendered as a fictional 14 m beam and a symmetric frame drew antisymmetrically. Caught by the human looking at the screen.
+  evidence: Second confirmed instance of the class the Reviewer Gate exists to catch, after `StiffnessMatrix` rendering raw LaTeX for several commits. Both passed every test. The replacement carries a real property test (portal-frame symmetry, `engine/diagramGeometry.test.ts`), but the other rendering tests are still the same shape that missed it — "a path exists and contains no NaN" proves a curve was drawn, not that it was drawn correctly. Worth naming as a standing weakness in how this repo tests rendering, not just as one fixed bug.
+
+- source_spec: none — `5b6fc83`
+  summary: A point Load cannot be edited after it is applied, including its station. `updateLoad` accepts a `position` patch and the store validates it, but no UI path reaches it -- the Load block still applies-and-lists with delete as the only mutation.
+  evidence: Widens the Story 1.4 deferral ("`updateLoad` is implemented and tested but has no UI path") rather than being new. It bites harder here: a magnitude typed wrongly is re-entered in two fields, but a station is the field most likely to be adjusted while working a problem, and re-entering means deleting and re-applying the whole Load.
+
+- source_spec: none — `2f80760`
+  summary: Positional labels now extend to the diagram drawings. `DiagramView` prints `E1`/`E2`/`E3` on the geometry itself, so deleting an Element renumbers members in the diagram as well as in the panel, the Solve errors and the screen-reader control names.
+  evidence: Fifth recurrence of the stable-ordinal gap first recorded for Story 1.3. Still one decision -- assign an ordinal at creation and store it -- made once for Nodes, Elements and Loads together. Each deferral has added a surface; this one adds the surface a student photographs for their working.
+
+- source_spec: none — `b9bf194`
+  summary: A diagram peak that does not fall on a member end is no longer labelled on the drawing at all. A simply supported beam's midspan `wL^2/8` appears only in the results table.
+  evidence: Deliberate, and requested: the peak marker was removed because a peak at a member end landed exactly on that end's value label. The narrower fix -- draw the peak label only where it does *not* coincide with a member end -- was identified at the time and not taken, because the collision was the reported problem and the value is still reported in full (value and location) in the Peak values table. Revisit if a Beam's midspan peak proves to be the number students look for on the drawing.
+
+- source_spec: none — `236dc5e`
+  summary: `loadUnitLabel` distinguishes only `udl` from everything else, so the new `point` kind falls through to the force branch and reads correctly by accident rather than by decision.
+  evidence: Correct today -- a point Load *is* newtons -- but it is a two-branch function now serving three kinds, and the next kind added inherits whichever branch it happens to land in. Worth making the mapping exhaustive over `LoadKind` so a new kind fails to compile rather than picking a unit silently.
+
 ## Resolved — 2026-08-31
 
 - source_spec: `.github/workflows/ci.yml`

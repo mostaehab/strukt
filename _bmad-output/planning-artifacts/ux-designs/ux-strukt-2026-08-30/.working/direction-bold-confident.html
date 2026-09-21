@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>strukt — Direction: Bold &amp; Confident</title>
+<style>
+  :root{
+    --color-bg-page:     #ECECF1; /* backdrop behind the browser-frame mock */
+    --color-bg-canvas:   #FFFFFF; /* crisp white canvas surface */
+    --color-bg-panel:    #FFFFFF; /* properties / results panel fill */
+    --color-bg-chrome:   #111114; /* near-black topbar + toolbar chrome */
+    --color-ink:         #0B0B0E; /* primary text on white */
+    --color-ink-on-dark: #F5F5F7; /* text/icons on the dark chrome */
+    --color-ink-soft:    #6B6B76; /* secondary text on white */
+    --color-ink-soft-dark:#9A9AA6; /* secondary text on dark chrome */
+    --color-border:      #E3E3E8; /* light hairline borders on white panels */
+    --color-accent:      #6C4CFA; /* electric violet — primary action / selection */
+    --color-accent-lime: #C8FF3D; /* lime — loads + "Solved" success punch */
+    --color-error:       #FF4757; /* instability / validation error state */
+    --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --font-mono: ui-monospace, SFMono-Regular, "Cascadia Mono", Consolas, "Liberation Mono", monospace;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; padding:32px 24px 64px; background:var(--color-bg-page);
+    font-family:var(--font-sans); color:var(--color-ink);
+  }
+  .rationale{
+    max-width:900px; margin:0 auto 28px; font-size:14px; line-height:1.55; color:#39393f;
+    background:#fff; border:2px solid var(--color-ink); padding:14px 20px;
+  }
+  .rationale b{color:var(--color-accent);}
+  h2.section-label{
+    max-width:1220px; margin:40px auto 12px; font-size:12px; letter-spacing:.04em; text-transform:uppercase;
+    color:#4a4a52; font-weight:800;
+  }
+  .browser-frame{
+    max-width:1220px; margin:0 auto; background:var(--color-bg-panel); border:2px solid var(--color-ink);
+    box-shadow:6px 6px 0 var(--color-ink);
+  }
+  .browser-frame.small{max-width:900px;}
+  .browser-chrome{
+    display:flex; align-items:center; gap:8px; padding:9px 14px; background:var(--color-bg-chrome); border-bottom:2px solid var(--color-ink);
+  }
+  .dot{width:10px;height:10px;border-radius:50%;background:#3a3a42;}
+  .url-bar{
+    flex:1; margin-left:10px; background:#1c1c21; font-family:var(--font-mono); font-size:11px; color:var(--color-ink-soft-dark);
+    padding:5px 12px;
+  }
+  .app-topbar{
+    display:flex; align-items:center; gap:16px; padding:14px 20px; background:var(--color-bg-chrome); border-bottom:2px solid var(--color-ink);
+  }
+  .logo{font-weight:900; font-size:18px; letter-spacing:-.02em; color:#fff;}
+  .logo .sq{display:inline-block;width:11px;height:11px;background:var(--color-accent-lime);margin-right:7px;vertical-align:1px;}
+  .proj-name{font-size:12px; color:var(--color-ink-soft-dark); font-weight:600;}
+  .proj-name b{color:#fff; font-weight:800;}
+  .badge{
+    font-size:10px; font-weight:700; letter-spacing:.02em; color:#0B0B0E; background:var(--color-accent-lime);
+    padding:3px 10px;
+  }
+  .spacer{flex:1;}
+  .units-toggle{display:flex; font-size:11px; font-weight:700; border:1px solid #3a3a42;}
+  .units-toggle span{padding:5px 10px; color:var(--color-ink-soft-dark);}
+  .units-toggle span.on{background:#fff; color:var(--color-ink);}
+  .btn-solve{
+    font-family:var(--font-sans); font-size:12.5px; font-weight:800; letter-spacing:.03em; text-transform:uppercase;
+    background:var(--color-accent); color:#fff; border:2px solid var(--color-accent); padding:9px 20px; cursor:default;
+  }
+  .btn-solve.blocked{background:var(--color-error); border-color:var(--color-error); color:#fff;}
+  .avatar{width:28px;height:28px; background:#fff; color:var(--color-ink); font-size:10.5px; font-weight:800;
+    display:flex; align-items:center; justify-content:center;}
+  .app-body{display:flex; min-height:430px;}
+  .toolbar{
+    width:64px; background:var(--color-bg-chrome); display:flex; flex-direction:column; align-items:center; padding:16px 0; gap:8px;
+    border-right:2px solid var(--color-ink);
+  }
+  .tool{
+    width:42px;height:42px; display:flex; align-items:center; justify-content:center; color:var(--color-ink-soft-dark);
+    border:1px solid transparent;
+  }
+  .tool svg{width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:2;}
+  .tool.active{background:var(--color-accent); color:#fff;}
+  .tool-label{font-size:8.5px; font-weight:700; text-transform:uppercase; color:var(--color-ink-soft-dark); margin-top:-3px;}
+  .tool-sep{width:30px;height:2px;background:#2a2a30; margin:5px 0;}
+  .canvas-area{
+    flex:1; background:var(--color-bg-canvas); position:relative;
+    background-image: linear-gradient(#F0F0F5 1px, transparent 1px), linear-gradient(90deg, #F0F0F5 1px, transparent 1px);
+    background-size: 26px 26px;
+  }
+  .canvas-area svg{width:100%; height:100%; display:block;}
+  .disclaimer{
+    position:absolute; left:12px; bottom:10px; font-size:9.5px; font-weight:600; color:#fff;
+    background:var(--color-ink); padding:3px 9px;
+  }
+  .side-panel{
+    width:270px; background:var(--color-bg-panel); border-left:2px solid var(--color-ink); padding:16px;
+  }
+  .side-panel h3{
+    font-size:13px; text-transform:uppercase; letter-spacing:.03em; color:var(--color-ink); margin:0 0 14px; font-weight:900;
+    border-bottom:2px solid var(--color-ink); padding-bottom:8px;
+  }
+  .field{margin-bottom:14px;}
+  .field label{display:block; font-size:10px; text-transform:uppercase; letter-spacing:.04em; font-weight:700; color:var(--color-ink-soft); margin-bottom:4px;}
+  .field .val{
+    font-family:var(--font-mono); font-size:13px; border:1px solid var(--color-border); background:#fafafc;
+    padding:7px 10px; display:flex; justify-content:space-between; font-weight:600;
+  }
+  .field .val.select{color:#fff; font-weight:800; background:var(--color-accent); border-color:var(--color-accent);}
+  .field .val .unit{color:var(--color-ink-soft); font-weight:400;}
+  .divider{height:2px; background:var(--color-ink); margin:16px 0;}
+  .reaction-tag{
+    display:inline-block; font-family:var(--font-mono); font-size:12px; font-weight:800; background:var(--color-ink);
+    color:var(--color-accent-lime); padding:4px 10px; margin-top:4px;
+  }
+  .results-area{background:var(--color-bg-panel); border-top:2px solid var(--color-ink); padding:16px 20px;}
+  .results-head{display:flex; align-items:center; gap:14px; margin-bottom:12px;}
+  .results-head h3{font-size:13px; text-transform:uppercase; letter-spacing:.03em; color:var(--color-ink); margin:0; font-weight:900;}
+  .tag-solved{font-family:var(--font-mono); font-size:11px; font-weight:800; color:var(--color-ink); background:var(--color-accent-lime); padding:2px 9px;}
+  .steps-toggle{margin-left:auto; font-size:11.5px; font-weight:700; color:var(--color-ink-soft); display:flex; align-items:center; gap:8px;}
+  .steps-toggle .sw{width:32px;height:16px; position:relative; background:#e3e3e8; border:1px solid var(--color-ink);}
+  .steps-toggle .sw i{position:absolute; left:1px; top:1px; width:12px; height:12px; background:var(--color-ink);}
+  .diagrams{display:grid; grid-template-columns:repeat(3,1fr) 200px; gap:14px;}
+  .diagram-card{border:2px solid var(--color-ink); padding:10px;}
+  .diagram-card h4{
+    margin:0 0 6px; font-size:10.5px; text-transform:uppercase; letter-spacing:.03em; color:var(--color-ink-soft); font-weight:800;
+    display:flex; justify-content:space-between;
+  }
+  .diagram-card h4 span{font-family:var(--font-mono); color:var(--color-accent); text-transform:none; font-weight:700;}
+  .diagram-card svg{width:100%; height:70px; display:block;}
+  .react-table{font-family:var(--font-mono); font-size:12px; width:100%; border-collapse:collapse; font-weight:600;}
+  .react-table th{font-family:var(--font-sans); font-size:9.5px; text-transform:uppercase; letter-spacing:.03em; color:var(--color-ink-soft); text-align:left; font-weight:800; padding-bottom:5px;}
+  .react-table td{padding:3px 0; border-top:1px solid var(--color-border);}
+  .error-banner{
+    background:var(--color-ink); border-left:6px solid var(--color-error); color:#fff; font-size:12.5px; font-weight:600;
+    padding:10px 14px; margin:14px 20px;
+  }
+  .empty-note{font-size:13px; color:var(--color-ink-soft); padding:10px 0; font-weight:600;}
+  .variant-wrap{max-width:900px; margin:0 auto;}
+  .variant-caption{font-size:11.5px; color:var(--color-ink-soft); margin:10px 4px 4px; font-weight:600;}
+</style>
+</head>
+<body>
+
+  <div class="rationale">
+    <b>Bold &amp; Confident.</b> A dark command-bar chrome around a stark white canvas, one loud electric-violet accent, and heavy black borders with a hard drop-shadow — the register of a modern SaaS tool, not an engineering utility. It reads as decisive on purpose: Solve is a violet slab, "Solved" snaps to lime, nothing is tentative or apologetic.
+  </div>
+
+  <h2 class="section-label">Hero — main canvas, mid-session, just after Solve</h2>
+  <div class="browser-frame">
+    <div class="browser-chrome">
+      <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+      <div class="url-bar">strukt.app/p/sara-hw3-simply-supported-beam</div>
+    </div>
+    <div class="app-topbar">
+      <div class="logo"><span class="sq"></span>strukt</div>
+      <div class="proj-name">HW3 — <b>Simply Supported Beam</b> · Beam preset</div>
+      <div class="badge">LEARNING TOOL — NOT FOR CERTIFIED USE</div>
+      <div class="spacer"></div>
+      <div class="units-toggle"><span class="on">SI</span><span>IMPERIAL</span></div>
+      <button class="btn-solve">Solve ✓</button>
+      <div class="avatar">SM</div>
+    </div>
+    <div class="app-body">
+      <div class="toolbar">
+        <div class="tool"><svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="5"/></svg></div>
+        <div class="tool-label">Node</div>
+        <div class="tool"><svg viewBox="0 0 20 20"><line x1="3" y1="17" x2="17" y2="3"/></svg></div>
+        <div class="tool-label">Element</div>
+        <div class="tool active"><svg viewBox="0 0 20 20"><path d="M10 3 L17 16 L3 16 Z"/></svg></div>
+        <div class="tool-label">Support</div>
+        <div class="tool"><svg viewBox="0 0 20 20"><line x1="10" y1="2" x2="10" y2="15"/><path d="M5 10 L10 16 L15 10"/></svg></div>
+        <div class="tool-label">Load</div>
+        <div class="tool-sep"></div>
+        <div class="tool"><svg viewBox="0 0 20 20"><path d="M3 3 L9 17 L11 11 L17 9 Z"/></svg></div>
+        <div class="tool-label">Select</div>
+      </div>
+
+      <div class="canvas-area">
+        <svg viewBox="0 0 720 260" preserveAspectRatio="xMidYMid meet">
+          <line x1="40" y1="120" x2="680" y2="120" stroke="var(--color-ink)" stroke-width="4"/>
+          <line x1="40" y1="196" x2="680" y2="196" stroke="var(--color-ink-soft)" stroke-width="1"/>
+          <line x1="40" y1="190" x2="40" y2="202" stroke="var(--color-ink-soft)" stroke-width="1"/>
+          <line x1="680" y1="190" x2="680" y2="202" stroke="var(--color-ink-soft)" stroke-width="1"/>
+          <text x="360" y="216" text-anchor="middle" font-family="var(--font-mono)" font-size="12" font-weight="700" fill="var(--color-ink-soft)">8 m</text>
+
+          <g stroke="var(--color-accent)" stroke-width="3" fill="var(--color-accent)">
+            <line x1="200" y1="55" x2="200" y2="115"/><path d="M200 118 L192 104 L208 104 Z"/>
+            <line x1="360" y1="55" x2="360" y2="115"/><path d="M360 118 L352 104 L368 104 Z"/>
+            <line x1="520" y1="55" x2="520" y2="115"/><path d="M520 118 L512 104 L528 104 Z"/>
+          </g>
+          <g font-family="var(--font-mono)" font-size="12" font-weight="800" fill="var(--color-accent)">
+            <text x="200" y="46" text-anchor="middle">5 kN</text>
+            <text x="360" y="46" text-anchor="middle">5 kN</text>
+            <text x="520" y="46" text-anchor="middle">5 kN</text>
+          </g>
+
+          <rect x="26" y="106" width="28" height="28" fill="none" stroke="var(--color-accent)" stroke-width="2.5"/>
+
+          <g stroke="var(--color-ink)" stroke-width="2" fill="none">
+            <path d="M40 120 L28 140 L52 140 Z"/><line x1="24" y1="140" x2="56" y2="140"/>
+            <line x1="26" y1="140" x2="22" y2="146"/><line x1="33" y1="140" x2="29" y2="146"/><line x1="40" y1="140" x2="36" y2="146"/><line x1="47" y1="140" x2="43" y2="146"/><line x1="54" y1="140" x2="50" y2="146"/>
+            <path d="M680 120 L668 140 L692 140 Z"/><line x1="664" y1="140" x2="696" y2="140"/>
+            <line x1="666" y1="140" x2="662" y2="146"/><line x1="673" y1="140" x2="669" y2="146"/><line x1="680" y1="140" x2="676" y2="146"/><line x1="687" y1="140" x2="683" y2="146"/><line x1="694" y1="140" x2="690" y2="146"/>
+          </g>
+
+          <g fill="#fff" stroke="var(--color-ink)" stroke-width="3">
+            <circle cx="40" cy="120" r="6"/><circle cx="200" cy="120" r="6"/>
+            <circle cx="360" cy="120" r="6"/><circle cx="520" cy="120" r="6"/><circle cx="680" cy="120" r="6"/>
+          </g>
+          <g font-family="var(--font-mono)" font-size="11" font-weight="700" fill="var(--color-ink-soft)">
+            <text x="40" y="104" text-anchor="middle">N1</text>
+            <text x="200" y="104" text-anchor="middle">N2</text>
+            <text x="360" y="104" text-anchor="middle">N3</text>
+            <text x="520" y="104" text-anchor="middle">N4</text>
+            <text x="680" y="104" text-anchor="middle">N5</text>
+          </g>
+        </svg>
+        <div class="disclaimer">LEARNING TOOL — NOT LICENSED ENGINEERING JUDGMENT</div>
+      </div>
+
+      <div class="side-panel">
+        <h3>Node N1</h3>
+        <div class="field"><label>Coordinates</label><div class="val">x = 0.00 <span class="unit">m</span> &nbsp; y = 0.00 <span class="unit">m</span></div></div>
+        <div class="field"><label>Support</label><div class="val select">HINGED ▾</div></div>
+        <div class="field"><label>DOF</label><div class="val">u,v restrained · θ free</div></div>
+        <div class="divider"></div>
+        <div class="field">
+          <label>Reaction (this Solve)</label>
+          <div class="reaction-tag">Ry = 7.50 kN</div><br>
+          <div class="reaction-tag" style="margin-top:6px;">Rx = 0.00 kN</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="results-area">
+      <div class="results-head">
+        <h3>Results</h3><span class="tag-solved">SOLVED</span>
+        <div class="steps-toggle">SHOW STEPS <div class="sw"><i></i></div></div>
+      </div>
+      <div class="diagrams">
+        <div class="diagram-card">
+          <h4>BMD <span>max 20.0 kNm</span></h4>
+          <svg viewBox="0 0 220 70"><polyline points="10,20 60,29 110,32 160,29 210,20" fill="none" stroke="var(--color-accent)" stroke-width="3"/><line x1="10" y1="20" x2="210" y2="20" stroke="var(--color-border)" stroke-width="1"/></svg>
+        </div>
+        <div class="diagram-card">
+          <h4>SFD <span>±7.5 kN</span></h4>
+          <svg viewBox="0 0 220 70"><polyline points="10,10 60,10 60,25 110,25 110,45 160,45 160,60 210,60" fill="none" stroke="var(--color-accent)" stroke-width="3"/><line x1="10" y1="35" x2="210" y2="35" stroke="var(--color-border)" stroke-width="1"/></svg>
+        </div>
+        <div class="diagram-card">
+          <h4>NFD <span>0 kN</span></h4>
+          <svg viewBox="0 0 220 70"><line x1="10" y1="35" x2="210" y2="35" stroke="var(--color-accent)" stroke-width="3"/></svg>
+        </div>
+        <div class="diagram-card">
+          <h4>Reactions</h4>
+          <table class="react-table">
+            <tr><th>Node</th><th>Rx</th><th>Ry</th></tr>
+            <tr><td>N1</td><td>0.00</td><td>7.50</td></tr>
+            <tr><td>N5</td><td>0.00</td><td>7.50</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h2 class="section-label">State variant — instability blocks Solve (FR-11)</h2>
+  <div class="variant-wrap">
+    <div class="browser-frame small">
+      <div class="app-topbar">
+        <div class="logo"><span class="sq"></span>strukt</div>
+        <div class="proj-name">HW3 — <b>Simply Supported Beam</b></div>
+        <div class="spacer"></div>
+        <button class="btn-solve blocked">Solve — Blocked</button>
+      </div>
+      <div class="error-banner">CAN'T SOLVE: Node N5 is unrestrained. Assign a Support (Fixed, Hinged, or Roller) to continue.</div>
+      <div class="canvas-area" style="height:170px;">
+        <svg viewBox="0 0 720 200" preserveAspectRatio="xMidYMid meet">
+          <line x1="40" y1="100" x2="680" y2="100" stroke="var(--color-ink)" stroke-width="4"/>
+          <g stroke="var(--color-ink)" stroke-width="2" fill="none">
+            <path d="M40 100 L28 120 L52 120 Z"/><line x1="24" y1="120" x2="56" y2="120"/>
+            <line x1="26" y1="120" x2="22" y2="126"/><line x1="33" y1="120" x2="29" y2="126"/><line x1="40" y1="120" x2="36" y2="126"/><line x1="47" y1="120" x2="43" y2="126"/><line x1="54" y1="120" x2="50" y2="126"/>
+          </g>
+          <rect x="666" y="86" width="28" height="28" fill="none" stroke="var(--color-error)" stroke-width="3"/>
+          <g fill="#fff" stroke="var(--color-ink)" stroke-width="3">
+            <circle cx="40" cy="100" r="6"/><circle cx="200" cy="100" r="6"/><circle cx="360" cy="100" r="6"/><circle cx="520" cy="100" r="6"/>
+            <circle cx="680" cy="100" r="6" stroke="var(--color-error)"/>
+          </g>
+          <text x="680" y="82" text-anchor="middle" font-family="var(--font-mono)" font-size="11" font-weight="800" fill="var(--color-error)">N5 · FREE</text>
+        </svg>
+      </div>
+      <div class="results-area"><div class="empty-note">No results — fix the structure above, then Solve again.</div></div>
+    </div>
+    <div class="variant-caption">The error is as loud and unambiguous as the rest of the UI — never a quiet gray notice.</div>
+  </div>
+
+</body>
+</html>

@@ -178,6 +178,18 @@ function positiveRejection(entityLabel: string, fieldName: string): string {
 }
 
 /**
+ * The one missing-station rejection. A station of zero is not the answer here:
+ * a Load acting at the start Node *is* a concentrated Node Load and is entered
+ * as one, so this field wants a distance along the member.
+ */
+function missingStationRejection(entityLabel: string): string {
+  return (
+    `${entityLabel} needs a distance from the start of the member. ` +
+    "Enter how far along it the Load acts."
+  );
+}
+
+/**
  * A positive-number field: a manual area/inertia override, or a Load
  * magnitude.
  *
@@ -378,10 +390,12 @@ function LoadBlock({
   // The last *completed* entry. Null again from the first keystroke after it,
   // so Apply can never apply a value the field no longer shows.
   const draftRef = useRef<number | null>(null);
-  // Defaults to the start Node rather than staying empty: a point Load with no
-  // station is not a thing, and 0 is the one value that is always on the
-  // member whatever its length.
-  const positionRef = useRef<number>(0);
+  // Null until a station is entered, and null again from the first keystroke
+  // after -- the same staleness rule as the magnitude draft. Deliberately not
+  // defaulted to 0: the field resets after each Apply, so a default would place
+  // the next Load at the start Node while the field showed nothing, and a
+  // station is exactly the field a student adjusts between two Loads.
+  const positionRef = useRef<number | null>(null);
   const listRef = useRef<HTMLUListElement | null>(null);
   // A ref rather than state: this is a one-shot instruction consumed by the
   // very next commit, and storing it in state would mean setting state from
@@ -415,6 +429,13 @@ function LoadBlock({
 
   const apply = () => {
     const kilonewtons = draftRef.current;
+    // A point Load with no station has nowhere to act, so it is refused here
+    // rather than being placed somewhere plausible.
+    if (kind === "point" && positionRef.current === null) {
+      setApplyError(missingStationRejection(`Load on ${entityLabel}`));
+      setAnnouncement("");
+      return;
+    }
     if (
       kilonewtons === null ||
       !addLoad(
@@ -423,7 +444,7 @@ function LoadBlock({
           forceToStore(kilonewtons, unitSystem),
           AXIS_DIRECTIONS[axis],
           kind,
-          lengthToStore(positionRef.current, unitSystem),
+          lengthToStore(positionRef.current ?? 0, unitSystem),
         ),
       )
     ) {
@@ -435,6 +456,10 @@ function LoadBlock({
       return;
     }
     draftRef.current = null;
+    // Cleared with the draft, not left standing: the field below resets to
+    // empty on the same signal, and a ref surviving that would apply the next
+    // Load at the last station while the field showed none.
+    positionRef.current = null;
     setApplyError("");
     setAnnouncement(`Load applied to ${entityLabel}.`);
     setResetSignal((signal) => signal + 1);
@@ -523,9 +548,12 @@ function LoadBlock({
           label={`Distance from start (${lengthUnit(unitSystem)})`}
           fieldName="distance"
           entityLabel={`Load on ${entityLabel}`}
-          value={0}
+          value={null}
           onCommit={(value) => {
-            positionRef.current = value ?? 0;
+            positionRef.current = value;
+          }}
+          onEntryChange={() => {
+            positionRef.current = null;
           }}
           resetSignal={resetSignal}
         />

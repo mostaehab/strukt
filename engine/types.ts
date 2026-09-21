@@ -90,11 +90,16 @@ export interface ElementPointLoad extends LoadCommon {
  * field (FR-8/FR-9's "sum, don't overwrite"), so summing is derived on read by
  * `engine/loadResolution.ts`.
  *
- * A union of the two legal (kind, target) pairings rather than a free pairing
- * of both: a UDL on a Node would draw a single arrow labelled per-metre and
- * would be summed as a point force, so the combination is made
+ * A union of the three legal (kind, target) pairings rather than a free pairing
+ * of both axes: a UDL on a Node would draw a single arrow labelled per-metre
+ * and would be summed as a point force, so the combination is made
  * unrepresentable rather than merely undocumented. The shape of each member is
  * exactly AD-10's.
+ *
+ * `concentrated` and `point` are both forces in newtons and are still separate
+ * kinds, because a Node and a station along a member are not interchangeable
+ * targets: on a Truss, putting a Node under a mid-member load inserts a pin
+ * and turns that member into a two-bar mechanism (AD-12).
  *
  * Applied moment loads are an explicit FR-9 non-goal: there is no input-side
  * moment field here and none is reserved. `NodeResult.rmz` is the *output*

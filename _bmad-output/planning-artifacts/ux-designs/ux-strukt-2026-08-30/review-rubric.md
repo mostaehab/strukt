@@ -1,0 +1,67 @@
+# Spine Pair Review — strukt
+
+## Overall verdict
+
+This is a mechanically clean spine pair: component names match verbatim across both files, every `{path.to.token}` reference in EXPERIENCE.md resolves to a real DESIGN.md token, DESIGN.md follows the canonical Google Labs section order exactly, and the companion `reconcile-prd.md` already confirms glossary vocabulary is clean against the PRD. It is consumer-extractable as-is. The gaps that remain are concrete rather than cosmetic: one prose pixel value contradicts its own cited token, dark-mode contrast is unverified on two load-bearing combinations, shadow/elevation is never tokenized despite two components using it, the three signed-out auth surfaces (Register / Sign In / Verify Email) have no failure states anywhere in State Patterns, and one of the eight accepted `[NOTE FOR UX]` tags (screen-reader diagram description) is phrased as still-open when the memlog shows the product owner actually decided it. None of these block Finalize, but all are cheap to fix now versus expensive to discover mid-architecture.
+
+## 1. Flow coverage — adequate
+
+Sources frontmatter → both PRD-named journeys are present. UJ-1 ("Sara checks her simply-supported beam homework," EXPERIENCE.md lines 162–175) uses the PRD's own verbatim title (confirmed against `.memlog.md` line 25 and `prd.md`), has a named protagonist, 6 numbered steps, a bolded **Climax** beat (step 5), and a bolded **Failure path (FR-11)** beat. Strong. UJ-2 ("Sara's account and Projects," lines 177–189) is a UX-authored addition explicitly traceable to a memlog decision (`.memlog.md` line 64 — added because the PRD's own reviewer flagged no journey existed for accounts), correctly labeled as new rather than passed off as PRD-sourced. It has a named protagonist, 5 numbered steps, and a bolded **Climax** (step 4), plus a "Secondary paths" paragraph and a "First-login variant" — but no labeled **Failure path** the way UJ-1 has one (e.g., invalid credentials at Sign In, an expired/invalid verification link). This gap is structural, not cosmetic — it's the same gap found under State Coverage below (Auth states have no failure rows either), so the flow and the state table are both missing the same thing in lockstep.
+
+### Findings
+- **medium** UJ-2 has no labeled failure path (no wrong-password / failed-registration / expired-verification-link beat), unlike UJ-1's explicit "Failure path (FR-11)" (EXPERIENCE.md lines 177–189 vs. 175). *Fix:* add a short failure beat to UJ-2 (or an explicit "no failure path modeled — see State Patterns" note) covering at least one signed-out failure mode.
+
+## 2. Token completeness — adequate
+
+All 26 color tokens have both hex value and light/dark pair — the rubric's critical bar (color tokens missing hex or light/dark pairs) is fully clear. Typography, rounded, spacing, and components tokens are all defined and every `{path.to.token}` reference found in DESIGN.md's body resolves to a real frontmatter key; no dangling references found. Two gaps found beyond the critical bar:
+
+### Findings
+- **high** DESIGN.md Layout & Spacing states "Panel and card interior padding runs `{spacing.5}`–`{spacing.6}` (18–24px)" (line 223), but `{spacing.5}` is defined as `20px` in frontmatter (line 91), not `18px` — `18px` is actually the value of the unrelated `{spacing.gutter}` token, cited two clauses later in the same sentence. A downstream implementer reading only the parenthetical would build the wrong padding. *Fix:* correct the parenthetical to "(20–24px)," or if 18px was actually intended, change the token reference to whichever token equals 18px.
+- **medium** Elevation & Depth's two shadow values (`0 1px 3px rgba(16,35,59,0.05)` light / `0 1px 3px rgba(0,0,0,0.24)` dark, DESIGN.md lines 231–232) are never captured as frontmatter tokens, and the two components stated to use them (`diagram-card`, `project-card`) have no `shadow` field in their frontmatter definitions (lines 144–152) pointing back at them. Every other visual property class (color, type, radius, spacing) is tokenized and referenced by path; shadow is the one left as prose-only literal CSS with no reachable token. *Fix:* add a `shadow` (or `elevation`) frontmatter key and reference it from `diagram-card`/`project-card`, or explicitly note in Elevation & Depth that shadow is deliberately untokenized (platform-convention style) if that's the intent.
+- **medium** Dark-mode contrast is stated for `ink-primary` (~15.7:1) but not for `accent-primary-dark` (white button-label text on `#5B95F2`) or `ink-secondary-dark`, even though light-mode counterparts get explicit ratios ("~6.1:1," "~5.6:1," DESIGN.md lines 199–200) and dark mode is a decided day-one requirement (`.memlog.md` line 61). `accent-primary-dark` backs the Solve button — the single most important interactive element — so this is a load-bearing combination left unverified. *Fix:* compute and state the two missing dark-mode ratios, or fold them into the existing accepted dark-mode-unverified assumption so it's clear the gap is known rather than missed.
+
+## 3. Component coverage — adequate
+
+All 13 named components in DESIGN.md.Components have an identically-named row in EXPERIENCE.md.Component Patterns with real behavioral rules, not placeholders (Button-Solve, Button-primary, Button-danger-outline, Toolbar tool, Tag-outline, Type badge, Diagram card, Project card, Disclaimer badge, Error banner, Show Steps toggle, Units toggle, Canvas grid — 13/13 verbatim match). Strong.
+
+### Findings
+- **low** "Empty-state card" is named twice — DESIGN.md's Typography section references an "empty-state title" and EXPERIENCE.md's State Patterns names a "dedicated empty-state card with its own '+ New Project' CTA" (line 90) — but neither file gives it its own Components row with a visual spec (background/border/radius), unlike every other named surface element. *Fix:* either add a one-line Components entry for it (likely composing `project-card`'s border/radius + `button-primary`) or state explicitly that it inherits `project-card`'s visual spec.
+
+## 4. State coverage — thin (on Auth) / strong (elsewhere)
+
+Canvas Workspace (7 states) and Projects Dashboard (6 states) are thorough — cold-load, empty, error, and conflict states are all covered with real treatment text. Auth (EXPERIENCE.md lines 95–101) is thin: only "Registered, unverified," "Verified," and "Signed out / session expired" are listed. There is no invalid-credentials state at Sign In, no failed-registration state at Register (duplicate email, weak password, social-login failure), and no expired/invalid-link state at Verify Email — despite these being exactly the surfaces most likely to need a distinct error treatment, and despite the spine's own Voice and Tone table (lines 41–48) modeling careful, specific error copy everywhere else in the product.
+
+### Findings
+- **high** No failure/error states defined for Register, Sign In, or Verify Email anywhere in State Patterns (EXPERIENCE.md lines 95–101). This is not one of the 8 accepted open items. *Fix:* add at minimum an "invalid credentials," a "registration failed (duplicate email / weak password)," and an "expired/invalid verification link" row, even if the treatment is just "reuses the same error-banner/inline-field-error convention as Canvas Workspace."
+
+## 5. Visual reference coverage — adequate
+
+`.working/key-canvas.html` and `.working/key-dashboard.html` (final layout/color truth) and `.working/direction-precise-clinical.html` (register-only) and `.working/color-themes-1.html` (color-only) are all named, linked by path, and their scope/authority stated in DESIGN.md's Brand & Style (lines 183) and EXPERIENCE.md's frontmatter note (line 13). Spines-win-on-conflict is stated in both files. Good.
+
+### Findings
+- **low** `.working/direction-bold-confident.html`, `.working/direction-minimal-airy.html`, and `.working/direction-warm-approachable.html` exist on disk and are discussed by name in EXPERIENCE.md's Inspiration & Anti-patterns ("Rejected — three visual directions," line 156) and DESIGN.md's Brand & Style (line 187), but neither file links the actual file paths — they're named as rejected concepts, not cited as files. Low stakes since they're superseded material, but technically orphaned per the letter of the rubric. *Fix:* optional — add the three file paths in a parenthetical next to the existing rejection sentence, or explicitly note they're intentionally uncited since superseded.
+
+## 6. Bloat & overspecification — strong
+
+DESIGN.md's editorial narrative (competitive triangulation, Discovery rejection history) is permitted editorial voice and is tied to real, memlog-traceable decisions, not decoration. No source-document restatement (personas/FRs) bleeds into either spine. Tables are used where a table earns it (Do's and Don'ts, Voice and Tone, Component Patterns, State Patterns).
+
+### Findings
+- **low** A few Key Flow sentences in EXPERIENCE.md lean editorial rather than strictly behavioral — e.g., "This is the trust moment for the accounts side of the product: her work is exactly where she left it" (UJ-2, line 184). The rubric reserves editorial voice for DESIGN.md; EXPERIENCE.md prose is meant to stay behavioral. Minor, and arguably earns its place as flow rationale rather than pure decoration, but worth a pass at Finalize.
+
+## 7. Inheritance discipline — strong (one drift)
+
+`sources` in EXPERIENCE.md's frontmatter resolves to real files. Glossary terms are identical across both spines, the PRD, and `.memlog.md` (confirmed independently and via `reconcile-prd.md`'s own clean vocabulary check — "Hinged" not "Pinned" correctly enforced everywhere). Component names are identical across every section in both files (see §3). Every EXPERIENCE.md token reference resolves to a DESIGN.md token by name. One drift found on the specific instruction to check whether any of the 8 accepted `[ASSUMPTION]`/`[NOTE FOR UX]` tags should have resolved differently against the memlog:
+
+### Findings
+- **high** EXPERIENCE.md's screen-reader-diagram-description tag (Accessibility Floor, line 124) reads: "`is not addressed anywhere in Discovery; the peak-value floor above is confirmed, anything beyond it is open`" — phrased as an unresolved question. But `.memlog.md` line 75 records a firm decision made *after* the blanket "accept all 8 as open items" note on line 74: "Screen-reader diagram accessibility: labeled peak-value text is sufficient for v1; no fuller auto-generated shape description required." That's a decision against adding more, not a deferral. The spine's current wording ("anything beyond it is open") could lead a downstream reader to think this is still awaiting a call, when the call was already made. *Fix:* reword the tag from a `[NOTE FOR UX: ... is open]` to a settled decision statement — e.g., "peak-value text is the confirmed v1 floor; a fuller shape description was considered and explicitly decided against, not merely deferred" — and consider whether it still needs bracket-tag treatment at all versus folding into ordinary Accessibility Floor prose.
+
+## 8. Shape fit — strong
+
+DESIGN.md's sections appear in exact canonical order: Brand & Style → Colors → Typography → Layout & Spacing → Elevation & Depth → Shapes → Components → Do's and Don'ts (lines 181/191/209/219/227/234/240/256). EXPERIENCE.md carries all 8 required defaults (Foundation, IA, Voice and Tone, Component Patterns, State Patterns, Interaction Primitives, Accessibility Floor, Key Flows). Responsive is correctly and explicitly omitted with a stated reason (no breakpoint table exists in any Discovery artifact, phone form factor is out of scope — Foundation, line 19). Inspiration & Anti-patterns is correctly included (triggered by memlog-documented rejected directions/themes and named reference/anti-reference products) and every invented section (Safety & Learning-Tool Disclaimer, Progressive Disclosure, Touch + Mouse Dual-Input) opens with an explicit one-line justification for why it earns dedicated treatment rather than folding into an existing section. No findings.
+
+## Mechanical notes
+
+- No broken `{path.to.token}` references were found in either direction (DESIGN.md frontmatter ↔ DESIGN.md prose, or EXPERIENCE.md prose → DESIGN.md frontmatter).
+- Component names are byte-identical across DESIGN.md and EXPERIENCE.md in all 13 cases.
+- No Mermaid content in either spine.
+- The companion `reconcile-prd.md` (already on disk in this folder) performed an independent PRD-vs-EXPERIENCE.md content check and found four items worth carrying into Finalize triage, cross-referenced here rather than re-litigated: (1) FR-2's Truss↔Frame switch-blocking warning has no EXPERIENCE.md coverage — medium, a real missing interaction contract; (2) FR-5's material-change-clears-Cross-Section side effect has no coverage — low/medium; (3) the "Verify Email" gate is traceable to a memlog decision (line 68, so not invented composition against this review's own memlog-trace check) but is entirely unsourced in the PRD itself and doesn't reconcile with FR-21's social-login path skipping verification — medium, flag forward to PM/architecture before treating as settled scope; (4) the FR-2/Beam Show-Steps pedagogy risk is only half-resolved (the color/data-model half is done; the addendum's actual ask — bridging copy so a student who picked "Beam" isn't confused by unexplained Frame terminology — is untouched) — medium.

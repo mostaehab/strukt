@@ -301,6 +301,48 @@ body {
   pointer-events: none;
 }
 
+/* The dimension on a half-drawn Element. Reads as secondary until the cursor
+   reaches a Node that can take the connection, so the accent means "this is
+   the member you are about to make" rather than just "here is a number". */
+/* A derived, read-only property row -- the same shape as a field, without the
+   control, so it reads as part of the panel rather than as a disabled input a
+   user will try to type into. */
+.element-derived {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--strukt-space-3);
+  margin: 0 0 var(--strukt-space-3);
+  font-size: var(--strukt-font-body-size);
+  color: var(--strukt-color-ink-secondary);
+}
+
+.val-readonly {
+  font-family: var(--strukt-font-numeral);
+  font-size: var(--strukt-font-numeral-sm-size);
+  color: var(--strukt-color-ink-primary);
+}
+
+.member-preview-label {
+  font-family: var(--strukt-font-numeral);
+  font-size: var(--strukt-font-numeral-sm-size);
+  line-height: var(--strukt-font-numeral-line-height);
+  padding: 1px 5px;
+  border: 1px solid var(--strukt-color-border-hairline);
+  border-radius: var(--strukt-radius-none);
+  /* Opaque: the band and the grid both run underneath it. */
+  background: var(--strukt-color-surface);
+  color: var(--strukt-color-ink-secondary);
+  white-space: nowrap;
+  user-select: none;
+  pointer-events: none;
+}
+
+.member-preview-label.is-connectable {
+  border-color: var(--strukt-color-accent-primary);
+  color: var(--strukt-color-accent-primary);
+}
+
 .hint {
   font-size: 0.85rem;
   color: var(--strukt-color-ink-secondary);

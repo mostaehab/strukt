@@ -3,17 +3,24 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import * as THREE from "three";
 import { Canvas, type ThreeEvent } from "@react-three/fiber";
+import { Html, Line } from "@react-three/drei";
 import useStructureStore from "@/store/useStructureStore";
 import { canConnect } from "@/engine/geometry";
 import { createElement } from "@/engine/element";
 import type { Load, StructuralNode } from "@/engine/types";
-import { formatForce, loadUnitLabel } from "@/utils/units";
+import {
+  formatForce,
+  formatLength,
+  lengthUnit,
+  loadUnitLabel,
+} from "@/utils/units";
 import useUnitStore, { type UnitSystem } from "@/store/useUnitStore";
 import { nodeLabel } from "@/utils/labels";
 import type { Tool } from "@/components/panels/Toolbar";
 import NodeGlyph from "./NodeGlyph";
 import ElementLine from "./ElementLine";
 import LoadGlyph from "./LoadGlyph";
+import { memberPreviewGeometry } from "./memberPreviewGeometry";
 import SupportGlyph from "./SupportGlyph";
 import useCanvasColors from "./useCanvasColors";
 import { NODE_GLYPH_Z, PIXELS_PER_WORLD_UNIT } from "./canvasConstants";
@@ -113,6 +120,10 @@ export default function CanvasWorkspace({
   const updateNode = useStructureStore((s) => s.updateNode);
 
   const [pendingStartId, setPendingStartId] = useState<string | null>(null);
+  // Snapped grid point under the cursor, tracked only while an Element is
+  // half-drawn. Null the rest of the time so no pointer move re-renders the
+  // canvas when there is no band to move.
+  const [pointer, setPointer] = useState<{ x: number; y: number } | null>(null);
   const [draggingNodeId, setDraggingNodeId] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState("");
 
@@ -124,6 +135,7 @@ export default function CanvasWorkspace({
   if (tool !== prevTool) {
     setPrevTool(tool);
     setPendingStartId(null);
+    setPointer(null);
     setStatusMessage("");
     setDraggingNodeId(null);
   }
@@ -213,6 +225,15 @@ export default function CanvasWorkspace({
 
   const handleBackgroundPointerMove = useCallback(
     (event: ThreeEvent<PointerEvent>) => {
+      if (pendingStartId) {
+        // The band follows the grid, not the raw cursor: an Element can only
+        // ever end on a Node, and Nodes are snapped, so a smooth band would
+        // report lengths no Element could have.
+        setPointer({
+          x: snap(event.point.x),
+          y: beamPreset ? BEAM_Y : snap(event.point.y),
+        });
+      }
       if (!draggingNodeId) return;
       const x = snap(event.point.x);
       const y = beamPreset ? BEAM_Y : snap(event.point.y);
@@ -222,7 +243,7 @@ export default function CanvasWorkspace({
       if (occupied) return;
       updateNode(draggingNodeId, { x, y });
     },
-    [draggingNodeId, beamPreset, nodes, updateNode],
+    [draggingNodeId, pendingStartId, beamPreset, nodes, updateNode],
   );
 
   const handleNodeSelect = useCallback(
@@ -230,6 +251,7 @@ export default function CanvasWorkspace({
       if (tool === "ELEMENT") {
         if (!pendingStartId) {
           setPendingStartId(node.id);
+          setPointer(null);
           setStatusMessage(
             // The positional label the panel shows, not the stored UUID.
             `Node ${nodeLabel(nodes, node.id)} selected. Choose an end Node to connect.`,
@@ -239,11 +261,13 @@ export default function CanvasWorkspace({
         if (pendingStartId === node.id) {
           setStatusMessage("Cannot connect a Node to itself. No Element created.");
           setPendingStartId(null);
+          setPointer(null);
           return;
         }
         if (!canConnect(nodes, pendingStartId, node.id)) {
           setStatusMessage("Nodes are coincident. No Element created.");
           setPendingStartId(null);
+          setPointer(null);
           return;
         }
         // Material and Cross-Section start unassigned -- "no Material yet" is
@@ -251,6 +275,7 @@ export default function CanvasWorkspace({
         addElement(createElement(nextElementId(), pendingStartId, node.id));
         setStatusMessage("");
         setPendingStartId(null);
+        setPointer(null);
         return;
       }
       if (tool === "SELECT") {
@@ -268,6 +293,25 @@ export default function CanvasWorkspace({
     },
     [tool],
   );
+
+  // The half-drawn Element, if there is one. A band is only meaningful to a
+  // Node that could actually receive the connection, so the target is resolved
+  // here rather than left as "wherever the cursor is".
+  const pendingStart = pendingStartId
+    ? nodes.find((node) => node.id === pendingStartId)
+    : undefined;
+  const hoveredNode = pointer
+    ? nodes.find((node) => node.x === pointer.x && node.y === pointer.y)
+    : undefined;
+  const willConnect = Boolean(
+    pendingStartId &&
+      hoveredNode &&
+      canConnect(nodes, pendingStartId, hoveredNode.id),
+  );
+  const preview =
+    pendingStart && pointer
+      ? memberPreviewGeometry(pendingStart.x, pendingStart.y, pointer.x, pointer.y)
+      : null;
 
   return (
     <div className="canvas-workspace">
@@ -312,6 +356,35 @@ export default function CanvasWorkspace({
             />
           );
         })}
+
+        {/* The half-drawn Element: solid and in accent when the cursor is on a
+            Node that can take the connection, hairline-dashed otherwise. The
+            dimension is the point of it -- an inclined member's length and
+            angle are not readable off the grid. */}
+        {preview && preview.length > 0 && (
+          <group>
+            <Line
+              points={[preview.start, preview.end]}
+              color={willConnect ? COLORS.accent : COLORS.grid}
+              lineWidth={willConnect ? 2 : 1.5}
+              dashed={!willConnect}
+              dashSize={willConnect ? undefined : 0.15}
+              gapSize={willConnect ? undefined : 0.1}
+            />
+            <Html position={preview.labelPosition} center pointerEvents="none">
+              <span
+                className={
+                  willConnect
+                    ? "member-preview-label is-connectable"
+                    : "member-preview-label"
+                }
+              >
+                {formatLength(preview.length, unitSystem)}{" "}
+                {lengthUnit(unitSystem)} · {preview.angle.toFixed(1)}°
+              </span>
+            </Html>
+          </group>
+        )}
 
         {/* Supports are drawn under their Node, so an assigned restraint is
             visible on the canvas rather than only in the properties panel --

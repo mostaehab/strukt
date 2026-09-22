@@ -9,7 +9,7 @@ import {
   vi,
   type MockInstance,
 } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import PropertiesPanel from "./PropertiesPanel";
 import useStructureStore from "@/store/useStructureStore";
 import { createElement } from "@/engine/element";
@@ -744,6 +744,49 @@ describe("PropertiesPanel Node Load block", () => {
         "Load on Node N1 needs a positive magnitude. Enter a value greater than zero.",
       ),
     ).toBeNull();
+  });
+});
+
+describe("PropertiesPanel Element length", () => {
+  /** An Element whose end Nodes actually exist, 3-4-5 so the length is exact. */
+  function seedMeasuredElement() {
+    const store = useStructureStore.getState();
+    store.addNode({ id: "n1", x: 0, y: 0, support: "FREE" });
+    store.addNode({ id: "n2", x: 3, y: 4, support: "FREE" });
+    useStructureStore
+      .getState()
+      .addElement(createElement(ELEMENT_ID, "n1", "n2"));
+  }
+
+  it("reports the length of the selected Element", () => {
+    seedMeasuredElement();
+    renderPanel();
+    screen.getByText("5.00 m");
+  });
+
+  it("follows the Nodes rather than being stored", () => {
+    seedMeasuredElement();
+    renderPanel();
+    act(() => {
+      // 3-4-5 becomes 6-8-10 by moving one end.
+      useStructureStore.getState().updateNode("n2", { x: 6, y: 8 });
+    });
+    // Derived: no edit to the Element, and the panel still tracks it.
+    screen.getByText("10.00 m");
+  });
+
+  it("shows no length while an end Node is missing", () => {
+    // The seeded Element here references Nodes that were never added, which is
+    // the shape a cascade leaves for the frame before the selection reconciles.
+    seedElement();
+    renderPanel();
+    expect(screen.queryByText("Length")).toBeNull();
+  });
+
+  it("shows no length when nothing is selected", () => {
+    seedMeasuredElement();
+    renderPanel(null);
+    expect(screen.queryByText("Length")).toBeNull();
   });
 });
 

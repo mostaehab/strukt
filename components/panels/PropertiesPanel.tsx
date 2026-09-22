@@ -27,6 +27,7 @@ import {
   inertiaToDisplay,
   inertiaToStore,
   inertiaUnit,
+  formatLength,
   lengthToStore,
   lengthUnit,
   loadUnitLabel,
@@ -633,6 +634,17 @@ export default function PropertiesPanel({
   );
   const selectedElement =
     selectedElementIndex === -1 ? null : elements[selectedElementIndex];
+
+  // Null when either end Node is missing -- an Element can briefly outlive one
+  // between a cascade and the render that reconciles the selection, and a
+  // length of NaN on screen is worse than no length.
+  const selectedElementLength = (() => {
+    if (!selectedElement) return null;
+    const start = nodes.find((n) => n.id === selectedElement.startNode);
+    const end = nodes.find((n) => n.id === selectedElement.endNode);
+    if (!start || !end) return null;
+    return Math.hypot(end.x - start.x, end.y - start.y);
+  })();
   // Nodes and Elements are both labelled by draw order (N1, N2 / E1, E2) --
   // the stored id is a UUID, which is not what a student reads back off the
   // canvas, and is certainly not what a rejection message should quote. Empty
@@ -756,6 +768,19 @@ export default function PropertiesPanel({
         {selectedElement ? (
           <>
             <p className="element-id">Element {elementLabel} — Properties</p>
+
+            {/* Derived, never stored: the length is the distance between the
+                two Nodes and changes the moment either is dragged. Read-only
+                for the same reason -- it is edited by moving a Node. */}
+            {selectedElementLength !== null && (
+              <p className="element-derived">
+                <span>Length</span>
+                <span className="val-readonly">
+                  {formatLength(selectedElementLength, unitSystem)}{" "}
+                  {lengthUnit(unitSystem)}
+                </span>
+              </p>
+            )}
 
             <div className="field">
               <label htmlFor="material-select">Material</label>

@@ -115,6 +115,39 @@ they carry no spec and had no Reviewer Gate. That is itself the first entry.
   summary: `loadUnitLabel` distinguishes only `udl` from everything else, so the new `point` kind falls through to the force branch and reads correctly by accident rather than by decision.
   evidence: Correct today -- a point Load *is* newtons -- but it is a two-branch function now serving three kinds, and the next kind added inherits whichever branch it happens to land in. Worth making the mapping exhaustive over `LoadKind` so a new kind fails to compile rather than picking a unit silently.
 
+## From the self-run review pass — 2026-09-22
+
+One of the three layers was run here, by the same model that wrote the code.
+That is the weakest of the three ways it could have been run and is not a
+substitute for the independent pass; `pending-review/` still stands. Recorded
+so nobody reads "reviewed" and assumes the gate closed.
+
+**Fixed in this pass**, so not deferred — listed because they say where to look:
+
+- `engine/diagrams.ts`'s shear-zero search carried a running total of passed
+  point Loads across segments. Two Loads sharing one station were added twice,
+  a Load at exactly `x = 0` never at all — so the analytic crossing landed in
+  the wrong segment, was discarded, and the reported peak fell back to the
+  nearest grid sample. Proven on a 10 m span (4.5 m reported against a true
+  4.6 m) before the fix. The symptom was never a crash or a visibly wrong
+  curve: the peak *value* was out by 0.03%, the *location* by a whole sample
+  spacing, and only the location is what a student checks a hand calculation
+  against. Both cases are now regression-tested.
+
+**Still open:**
+
+- source_spec: none — `engine/diagrams.ts`
+  summary: `sampleElement` still takes `structureType` but no longer branches on it -- the Truss short-circuit that used to zero the bending arrays was removed by AD-12. The parameter is threaded from `structureDiagrams` through every caller and does nothing.
+  evidence: Harmless today, but it is a live signal that a Truss is handled differently in here, which is exactly what AD-12 says is no longer true. Remove it, or the next reader will look for the branch.
+
+- source_spec: none — `app/canvas/page.tsx`, `components/panels/ResultsArea.tsx`
+  summary: `hasBending` is computed as "any Load targets an Element", which is a proxy for "a member bends", not the thing itself. A UDL applied along a member's own axis is pure axial and produces no bending, but still offers a BMD and an SFD -- the empty-diagram case AD-12's own consequence rule says to avoid.
+  evidence: Confirmed by test: a horizontal member under a `+x` UDL reports `momentPeaks.max === null` while the shell still offers both views. The honest signal is already computed one layer down -- `structureDiagrams(...).momentPeaks` -- but the shell has no diagrams at that point. Either lift the check, or accept the proxy and say so in the comment, which currently claims more than it checks. Two duplicated expressions either way, which is its own smell.
+
+- source_spec: none — `utils/labelLayout.ts`
+  summary: A value label that cannot be placed is dropped, and unlike a peak it appears nowhere else -- the Peak values table carries the structure-wide extremes, not every member end value. So a crowded drawing can silently lose a number with no other route to it.
+  evidence: Not reachable on any realistic structure -- a six-member panel point places all six (tested), and the priority ordering spends every member name before any value (tested, 0/15 names kept against 13/15 values under synthetic pressure). Recorded because the failure is silent and the module's own comment justifies the drop with "the value is in the results table either way", which is true of peaks and not of member end values.
+
 ## Resolved — 2026-08-31
 
 - source_spec: `.github/workflows/ci.yml`

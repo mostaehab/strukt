@@ -120,4 +120,42 @@ describe("layoutLabels", () => {
   it("returns nothing for nothing", () => {
     expect(layoutLabels([])).toEqual([]);
   });
+
+  it("places every label where six members meet at one joint", () => {
+    // The worst crowding a real structure produces: a truss panel point with
+    // six members, each labelling its end value within a couple of font-sizes
+    // of the same joint.
+    const joint = Array.from({ length: 6 }, (_, i) => {
+      const angle = (i * Math.PI) / 3;
+      return candidate({
+        id: `value-${i}`,
+        x: Math.cos(angle) * 3,
+        y: Math.sin(angle) * 3,
+        text: `-12.${i} kN`,
+        fontSize: 3,
+        pushX: Math.cos(angle),
+        pushY: Math.sin(angle),
+      });
+    });
+    expect(layoutLabels(joint)).toHaveLength(6);
+    expect(anyOverlap(layoutLabels(joint))).toBe(false);
+  });
+
+  it("gives up every member name before it gives up any value", () => {
+    // Under pressure past what any real structure produces, the priority
+    // ordering must still spend the names first -- a name is recoverable from
+    // position on the drawing, a number is not.
+    const crowd = Array.from({ length: 30 }, (_, i) =>
+      candidate({
+        id: i % 2 === 0 ? `value-${i}` : `name-${i}`,
+        text: i % 2 === 0 ? `${i}.0 kN` : `E${i}`,
+        priority: i % 2 === 0 ? 0 : 1,
+      }),
+    );
+    const placed = layoutLabels(crowd);
+    const kept = (prefix: string) =>
+      placed.filter((label) => label.id.startsWith(prefix)).length;
+    expect(kept("name-")).toBe(0);
+    expect(kept("value-")).toBeGreaterThan(0);
+  });
 });

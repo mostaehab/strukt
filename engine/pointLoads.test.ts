@@ -193,3 +193,64 @@ describe("a point Load that has slid off its member", () => {
     expect(outcome.errors[0].elementId).toBe("ab");
   });
 });
+
+describe("the shear-zero search with point Loads present", () => {
+  const SPAN = 10;
+  const nodes = [node("a", 0, 0, "HINGE"), node("b", SPAN, 0, "ROLLER")];
+  const elements = [member("ab", "a", "b")];
+
+  const udl = (magnitude: number): Load => ({
+    id: "w",
+    kind: "udl",
+    magnitude,
+    direction: [0, -1],
+    target: { type: "element", elementId: "ab" },
+  });
+
+  it("finds the true crossing when two Loads share one station", () => {
+    // Regression: the running total of passed Loads added a shared station
+    // once per duplicate, so the crossing landed in the wrong segment and was
+    // discarded -- and the peak fell back to the nearest grid sample, which is
+    // the one thing sampling the crossing exists to prevent.
+    const { diagrams } = run("FRAME", nodes, elements, [
+      udl(1000),
+      pointLoad("p1", "ab", 1000, 2),
+      pointLoad("p2", "ab", 1000, 2),
+    ]);
+    // R1 = 6600, so beyond x = 2 the shear is 4600 - 1000x and the moment
+    // turns over at 4.6 -- not at the 4.5 grid sample either side of it.
+    expect(diagrams.momentPeaks.max!.at).toBeCloseTo(4.6, 6);
+  });
+
+  it("finds the true crossing with three Loads on one station", () => {
+    const { diagrams } = run("FRAME", nodes, elements, [
+      udl(1000),
+      pointLoad("p1", "ab", 800, 3),
+      pointLoad("p2", "ab", 800, 3),
+      pointLoad("p3", "ab", 800, 3),
+    ]);
+    // R1 = 6680; beyond x = 3 the shear is 4280 - 1000x.
+    expect(diagrams.momentPeaks.max!.at).toBeCloseTo(4.28, 6);
+  });
+
+  it("is not skewed by a Load sitting exactly at the member start", () => {
+    // A station at x = 0 is behind every segment, including the first, and
+    // was previously counted in the sampled shear but not in the search.
+    const { diagrams } = run("FRAME", nodes, elements, [
+      udl(1000),
+      pointLoad("p", "ab", 4000, 0),
+    ]);
+    // That Load goes straight into the support, leaving a plain UDL span.
+    expect(diagrams.momentPeaks.max!.at).toBeCloseTo(SPAN / 2, 6);
+    expect(diagrams.momentPeaks.max!.value).toBeCloseTo((1000 * SPAN ** 2) / 8, 6);
+  });
+
+  it("accepts a station at the far end and refuses one past it", () => {
+    expect(() =>
+      run("FRAME", nodes, elements, [pointLoad("p", "ab", 4000, SPAN)]),
+    ).not.toThrow();
+    expect(() =>
+      run("FRAME", nodes, elements, [pointLoad("p", "ab", 4000, SPAN + 0.001)]),
+    ).toThrow();
+  });
+});

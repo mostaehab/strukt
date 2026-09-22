@@ -209,9 +209,21 @@ function samplePositions(
   points: LocalPointLoad[],
 ): Station[] {
   const epsilon = length * POSITION_TOLERANCE;
-  const interior = points
+  // Distinct stations only. Two Loads may share one -- the canvas fans them
+  // apart for exactly that case -- and a station listed twice would become a
+  // zero-length segment that corrupts the crossing search below.
+  const interior: number[] = [];
+  for (const at of points
     .map((point) => point.at)
-    .filter((at) => at > epsilon && at < length - epsilon);
+    .filter((at) => at > epsilon && at < length - epsilon)
+    .sort((a, b) => a - b)) {
+    if (
+      interior.length === 0 ||
+      Math.abs(at - interior[interior.length - 1]) > epsilon
+    ) {
+      interior.push(at);
+    }
+  }
 
   const stations: Station[] = [];
   for (let i = 0; i < SAMPLES_PER_ELEMENT; i += 1) {
@@ -229,16 +241,19 @@ function samplePositions(
 
   if (across !== 0) {
     const breaks = [0, ...interior, length];
-    // Point Loads already behind the start of the current segment.
-    let stepped = 0;
     for (let i = 0; i < breaks.length - 1; i += 1) {
       const from = breaks[i];
       const to = breaks[i + 1];
-      if (i > 0) {
-        for (const point of points) {
-          if (Math.abs(point.at - from) <= epsilon) stepped += point.across;
-        }
-      }
+      // Every point Load at or before this segment's start, summed afresh
+      // rather than carried forward. A running total had to add each station's
+      // Loads exactly once, which two Loads sharing a station and a Load
+      // sitting at x = 0 both broke -- and the symptom was not a crash but a
+      // peak reported at the nearest grid sample, which is the one thing this
+      // function exists to prevent.
+      const stepped = points.reduce(
+        (sum, point) => (point.at <= from + epsilon ? sum + point.across : sum),
+        0,
+      );
       const crossing = -(shearStart + stepped) / across;
       if (crossing > from && crossing < to) {
         stations.push({ x: crossing, after: true });
